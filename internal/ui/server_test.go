@@ -95,6 +95,18 @@ func TestIndex(t *testing.T) {
 	}
 }
 
+func TestKiosk(t *testing.T) {
+	r := newRig([]string{testHost})
+	rec := r.do("GET", "/kiosk/plus", "")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `id="stage"`) {
+		t.Errorf("known device: status %d", rec.Code)
+	}
+	rec = r.do("GET", "/kiosk/nope", "")
+	if rec.Code != 404 || errorCode(t, rec) != codeUnknownDevice {
+		t.Errorf("unknown device: status %d body %q", rec.Code, rec.Body.String())
+	}
+}
+
 func TestDevices(t *testing.T) {
 	rec := newRig([]string{testHost}).do("GET", "/api/devices", "")
 	var list []deviceInfo

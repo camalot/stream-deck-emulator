@@ -122,6 +122,11 @@ func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFileFS(w, r, assets, "static/index.html")
 	})
+	mux.HandleFunc("GET /kiosk/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if device(w, r) != nil {
+			http.ServeFileFS(w, r, assets, "static/index.html")
+		}
+	})
 	mux.Handle("GET /static/", http.FileServerFS(assets))
 	mux.Handle("GET /locales/", http.FileServerFS(assets))
 

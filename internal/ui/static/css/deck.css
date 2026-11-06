@@ -34,7 +34,7 @@
 
 .strip { box-sizing: border-box; grid-column: 1 / -1; display: block; width: 100%; aspect-ratio: var(--w) / var(--h); border: 2px solid #454545; border-radius: calc(var(--k) * .08); background: #000; cursor: pointer; touch-action: none; -webkit-user-drag: none; }
 
-.dial { box-sizing: border-box; position: relative; width: calc(var(--k) * .8); height: calc(var(--k) * .8); border: 2px solid #5a5a5a; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3c3c3c, #1c1c1c); cursor: grab; }
+.dial { box-sizing: border-box; position: relative; width: calc(var(--k) * .8); height: calc(var(--k) * .8); border: 2px solid #5a5a5a; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3c3c3c, #1c1c1c); cursor: grab; touch-action: none; }
 .dial::after { content: ""; position: absolute; left: 50%; top: 10%; width: 4%; height: 19%; translate: -50%; background: #c8c8c8; border-radius: 2px; }
 .dial.down { transform: scale(.94); }
 

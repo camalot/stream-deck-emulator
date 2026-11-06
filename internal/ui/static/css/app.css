@@ -23,15 +23,15 @@ body {
   box-sizing: border-box;
   min-height: 100dvh;
   margin: 0;
-  padding: 0 var(--page-pad) var(--page-pad);
+  padding: var(--page-pad);
   display: grid;
-  grid-template-rows: auto 1fr;
   background: var(--page);
   font: 1rem system-ui, sans-serif;
   color: var(--muted);
 }
 
-.title { margin: 0; padding: 16px 0 28px; text-align: center; font-size: 1.25rem; font-weight: 600; color: var(--text); }
+.title { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 16px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
+.title img { flex: none; width: 1.6em; height: 1.6em; }
 
 select, button { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
 button { cursor: pointer; }
@@ -53,3 +53,8 @@ button:hover { background: var(--control-hover); }
 .hints { display: flex; flex-direction: column; gap: 4px; margin-top: 20px; text-align: center; }
 .hints:empty { display: none; }
 .hint { margin: 0; }
+
+/* Kiosk (/kiosk/<id>): only the device, with just the link lamp in the corner. */
+.kiosk .device { background: none; box-shadow: none; border-radius: 0; }
+.kiosk #picker, .kiosk #toggle, .kiosk .hints { display: none; }
+.kiosk .bar { position: fixed; top: 24px; right: 32px; width: auto; min-width: 0; }

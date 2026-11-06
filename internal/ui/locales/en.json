@@ -7,7 +7,7 @@
   "status.connecting": "Connecting…",
   "status.connected": "Connected",
   "status.error": "Connection failed",
-  "hint.dial": "Dial: scroll to rotate, click to press.",
+  "hint.dial": "Dial: scroll or swipe sideways to rotate, click to press.",
   "hint.strip": "Strip: click, hold or drag.",
   "hint.touchkey": "The two side buttons are the touch keys.",
   "error.client_not_found": "USB/IP client not found. Attach the device by hand: {detail}",

@@ -88,8 +88,8 @@ test('Studio places two working dials beside the unchanged 16-by-2 key grid', ()
     assert.equal(dial.className, 'dial');
     assert.equal(dial.style.gridColumnStart, index === 0 ? 1 : 18);
     assert.equal(dial.style.gridRow, '1 / span 2');
-    dial.handlers.pointerdown();
-    dial.handlers.pointerup();
+    dial.handlers.pointerdown({ pointerId: 1, clientX: 0 });
+    dial.handlers.pointerup({ pointerId: 1 });
     for (const deltaY of [-1, 1]) {
       let prevented = false;
       dial.handlers.wheel({ deltaY, preventDefault() { prevented = true; } });
@@ -120,4 +120,36 @@ test('Plus models keep their dials in a centered row beneath the strip', () => {
       assert.equal(dial.style.gridColumnStart, id === 'plus-xl' && index === 0 ? 2 : undefined);
     });
   }
+});
+
+function dialDeck() {
+  const sent = [];
+  const deck = createDeck({ id: 'plus', rows: 2, cols: 4, dials: 4 }, body => sent.push(body));
+  const dial = deck.panel.children[8];
+  return { sent, dial };
+}
+
+test('swiping a dial sideways rotates it without pressing', () => {
+  const { sent, dial } = dialDeck();
+  dial.handlers.pointerdown({ pointerId: 1, clientX: 100 });
+  dial.handlers.pointermove({ pointerId: 1, clientX: 135 });
+  dial.handlers.pointerup({ pointerId: 1 });
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: 2 }]);
+
+  sent.length = 0;
+  dial.handlers.pointerdown({ pointerId: 2, clientX: 100 });
+  dial.handlers.pointermove({ pointerId: 2, clientX: 70 });
+  dial.handlers.pointerup({ pointerId: 2 });
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: -1 }]);
+});
+
+test('tapping a dial presses and releases it', () => {
+  const { sent, dial } = dialDeck();
+  dial.handlers.pointerdown({ pointerId: 1, clientX: 100 });
+  dial.handlers.pointermove({ pointerId: 1, clientX: 103 });
+  dial.handlers.pointerup({ pointerId: 1 });
+  assert.deepEqual(sent, [
+    { type: 'dialPress', index: 0, down: true },
+    { type: 'dialPress', index: 0, down: false },
+  ]);
 });

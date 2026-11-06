@@ -9,19 +9,159 @@ dotenv:
 
 tasks:
 
+  require-xget:
+    silent: true
+    internal: true
+    desc: Ensure xget is installed in the system PATH
+    cmds:
+      - command -v xget >/dev/null 2>&1 || { echo "xget is required but not installed"; exit 1; }
+  
+  tools:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install the CI tools
+    cmds:
+      - task: tools:typos
+      - task: tools:golangci
+      - task: tools:govulncheck
+
+  tools:golangci:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install golangci-lint into GOBIN
+    if: '! command -v golangci-lint >/dev/null 2>&1'
+    status:
+      - '! command -v golangci-lint >/dev/null 2>&1'
+    cmds:
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+  tools:govulncheck:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install govulncheck into GOBIN
+    if: '! command -v govulncheck >/dev/null 2>&1'
+    status:
+      - '! command -v govulncheck >/dev/null 2>&1'
+    cmds:
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+
+  tools:typos:
+    internal: true
+    deps:
+      - require-xget
+    desc: Install typos-action into GOBIN
+    if: '! command -v typos >/dev/null 2>&1'
+    status:
+      - '! command -v typos >/dev/null 2>&1'
+    cmds:
+      - xget install crate-ci/typos --to ~/.local/bin/ --non-interactive
+
+  typos:check:
+    internal: false
+    desc: 'CI job "typos": check for typos'
+    cmds:
+      - typos
+
+  tidy:
+    desc: go mod tidy across every module (root, sdk, examples)
+    cmds:
+      - go mod tidy
+
+  lint:
+    internal: true
+    desc: 'CI job "lint": golangci-lint'
+    deps:
+      - tools
+    cmds:
+      - golangci-lint run ./...
+
+  vet:
+    internal: true
+    desc: 'CI job "vet-and-vuln": go vet'
+    cmds:
+      - go vet ./...
+
+  vuln:
+    internal: true
+    desc: 'CI job "vet-and-vuln": govulncheck (every module, not just the root)'
+    deps:
+      - tools
+    cmds:
+      - govulncheck ./...
+
+  codeql:
+    internal: false
+    silent: false
+    cmds:
+      - task: codeql:actions:.
+      - task: codeql:go:.
+
+  fmt:check:
+    internal: true
+    silent: true
+    desc: Fail if any file is not gofmt-clean
+    cmds:
+      # gofmt -l exits 0 even when it lists files, so turn any output into a failure.
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then
+          echo "not gofmt-clean:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+  test:
+    desc: 'CI job "test": build + full test suite with coverage'
+    cmds:
+      - go build ./...
+      - go test ./... -coverprofile=coverage.out
+
   build-snapshot:
     internal: true
     desc: 'CI job "build-snapshot": goreleaser snapshot of every target'
     cmds:
       - goreleaser build --snapshot --clean
 
-  build:
-    cmds:
-      - task: build-snapshot
-
   run:
     cmds:
-      - task: build
+      - task: build-snapshot
       - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -version
       - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -help
       - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe
+
+  ci:
+    desc: Run every check the ci.yml workflow runs, in the same order
+    cmds:
+      - task: typos:check
+      - task: lint
+      - task: vet
+      - task: vuln
+      - task: codeql
+      - task: fmt:check
+      - task: test
+      - task: build-snapshot
+
+  build:
+    desc: Build the project (local dev loop - full CI parity is 'task ci')
+    cmds:
+      - task: typos:check
+      - task: tidy
+      - task: lint
+      - task: vet
+      - task: fmt:check
+      - task: vuln
+      - task: codeql
+      - task: test
+      - task: build-snapshot
+
+  release:dry-run:
+    desc: Build the release and render the winget/scoop/homebrew manifests into dist/ without publishing anything
+    deps:
+      - manpage
+    env:
+      SD_EMULATOR_DRY_RUN: "true"
+    cmds:
+      - goreleaser release --clean --skip=validate,announce,sign,sbom

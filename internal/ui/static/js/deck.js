@@ -4,6 +4,9 @@ const LONG_PRESS_MS = 500;
 const DRAG_PX = 20;
 const TOUCH_SHORT = 1, TOUCH_LONG = 2, TOUCH_DRAG = 3;
 const DIAL_STEP_DEG = 12;
+const DIAL_DRAG_PX = 16;
+const DIAL_DRAG_START_PX = 6;
+const DIAL_PRESS_MS = 150;
 // A real panel at 0% brightness is dim, not black.
 const MIN_BRIGHTNESS = 0.25;
 const RGB_HEX_DIGITS = 6;
@@ -92,15 +95,63 @@ function buildDials(deck, info, send) {
       dial.style.gridColumnStart = offset + 1;
     }
     let angle = 0;
-    dial.addEventListener('wheel', e => {
-      e.preventDefault();
-      const ticks = e.deltaY < 0 ? 1 : -1;
+    const rotate = ticks => {
       angle += ticks * DIAL_STEP_DEG;
       dial.style.rotate = `${angle}deg`;
       send({ type: 'dialRotate', index: i, ticks });
+    };
+    dial.addEventListener('wheel', e => {
+      e.preventDefault();
+      rotate(e.deltaY < 0 ? 1 : -1);
     }, { passive: false });
-    pressable(dial, down => send({ type: 'dialPress', index: i, down }));
+    dragDial(dial, rotate, down => send({ type: 'dialPress', index: i, down }));
   }
+}
+
+// dragDial turns a pointer (mouse or touch) on node into presses and
+// rotation: a horizontal drag rotates by one tick per DIAL_DRAG_PX (right is
+// positive), anything else is a press. The press starts after DIAL_PRESS_MS
+// or on release, and a drag cancels it, so a swipe never presses the dial.
+function dragDial(node, rotate, press) {
+  let active = null;
+  const setDown = value => {
+    if (!active || active.down === value) return;
+    active.down = value;
+    node.classList.toggle('down', value);
+    press(value);
+  };
+  const finish = () => {
+    if (!active) return;
+    clearTimeout(active.timer);
+    if (!active.dragged) setDown(true);
+    setDown(false);
+    active = null;
+  };
+  node.addEventListener('pointerdown', e => {
+    if (active) return;
+    node.setPointerCapture?.(e.pointerId);
+    active = { id: e.pointerId, x: e.clientX, down: false, dragged: false, timer: setTimeout(() => setDown(true), DIAL_PRESS_MS) };
+  });
+  node.addEventListener('pointermove', e => {
+    if (!active || e.pointerId !== active.id) return;
+    const dx = e.clientX - active.x;
+    if (!active.dragged && Math.abs(dx) < DIAL_DRAG_START_PX) return;
+    if (!active.dragged) {
+      active.dragged = true;
+      clearTimeout(active.timer);
+      setDown(false);
+    }
+    const ticks = Math.trunc(dx / DIAL_DRAG_PX);
+    if (ticks) {
+      active.x += ticks * DIAL_DRAG_PX;
+      rotate(ticks);
+    }
+  });
+  node.addEventListener('pointerup', finish);
+  node.addEventListener('pointercancel', () => {
+    if (active) active.dragged = true;
+    finish();
+  });
 }
 
 // buildInfoBar lays out the touch keys around the info screen.

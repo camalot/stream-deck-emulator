@@ -10,6 +10,10 @@ const notice = document.getElementById('notice');
 const stage = document.getElementById('stage');
 const hints = document.getElementById('hints');
 
+// kioskId is the device of a /kiosk/<id> page, which shows only that device.
+const kioskId = decodeURIComponent(location.pathname.match(/^\/kiosk\/([^/]+)\/?$/)?.[1] ?? '') || null;
+if (kioskId) document.body.classList.add('kiosk');
+
 const devices = new Map();
 // The device on the page.
 let current = null;
@@ -71,6 +75,7 @@ function savedDevice() {
 
 // pickDevice prefers the last choice, then a device that is already live.
 function pickDevice() {
+  if (kioskId) return kioskId;
   const saved = savedDevice();
   if (devices.has(saved)) return saved;
   const live = [...devices.values()].find(isLive);
@@ -90,7 +95,9 @@ function showDevice(id) {
     line.textContent = t(key);
     hints.append(line);
   }
-  try { localStorage.setItem('device', id); } catch { /* private mode */ }
+  if (!kioskId) {
+    try { localStorage.setItem('device', id); } catch { /* private mode */ }
+  }
   renderBar();
 }
 
@@ -123,7 +130,9 @@ function listen() {
 
 async function init() {
   await loadFallback();
-  for (const info of await api.listDevices()) addDevice(info);
+  for (const info of await api.listDevices()) {
+    if (!kioskId || info.id === kioskId) addDevice(info);
+  }
   picker.addEventListener('change', () => showDevice(picker.value));
   toggle.addEventListener('click', async () => {
     const d = current;
@@ -135,6 +144,10 @@ async function init() {
   await setLang(pickLang());
   renderText();
   listen();
+  if (kioskId && current && !isLive(current)) {
+    current.actionError = await api.connect(current.info.id);
+    renderLink(current);
+  }
 }
 
 init();
