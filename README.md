@@ -27,6 +27,7 @@ It is built for plugin developers who do not own every model.
 | Stream Deck Module Vertical | `module-vert` | 15 keys (3x5), same product id as Module |
 | Stream Deck Studio | `studio` | 32 keys (16x2), 2 dials at the left and right |
 | Stream Deck Pedal | `pedal` | 3 keys, no displays |
+| Corsair Galleon 100 (experimental) | `galleon-100` | 12 keys (3x4), 2 dials above a 720x384 touchscreen |
 
 All models speak the v2 protocol. The original Stream Deck and the Mini use the older v1 protocol and are not emulated yet.
 
@@ -52,6 +53,20 @@ All models speak the v2 protocol. The original Stream Deck and the Mini use the 
 
 ## Limitations
 
+- Galleon 100 support is experimental. It emulates only the Stream Deck section,
+  not the keyboard. The layout follows device photos: two dials, a touchscreen
+  with four digital areas (2x2), then twelve physical keys (3x4). The four areas
+  are regions of one touchscreen, not extra HID keys. USB identity
+  `1b1c:2b18`, 120px key images and the 720x384 display follow the shared
+  Stream Pulse catalogue and are unverified. Image orientation, unit-info panel
+  dimensions, feature payloads and v2 HID behavior are provisional; most feature
+  reports reuse the Plus implementation. Recognition by Stream Deck software
+  is not guaranteed. A real-device HID capture is needed to confirm these values.
+  Application firmware report `0x05` advertises `3.06.006`, matching version
+  metadata in Stream Deck's bundled Corsair K100 MK2 firmware. The shared
+  `3.01.005` value is rejected as legacy for this model and triggers repeated
+  updates. This is only an emulated version report: firmware flashing is not
+  implemented, and no firmware image is installed or executed by the emulator.
 - The Neo is implemented from open-source protocol descriptions and has not been compared with a real device. Report anything the app shows differently.
 - The XL, + XL, Module, Studio and Pedal are in the same state: their product ids, key sizes, rotation and panel sizes are best-effort values. The Module Vertical, Mobile and Corsair Keyboard have no Elgato USB product, so they use placeholder product ids (`0xf001` to `0xf003`) and the Stream Deck app will not recognise them.
 - See [Finding the real product ids](#finding-the-real-product-ids) to replace the guesses with values from your own hardware.
@@ -120,6 +135,14 @@ A successful `POST` answers `204`. An error answers with a JSON body such as `{"
 Keys are numbered from 0, left to right and top to bottom. The touch keys of the Neo follow the regular keys: 8 and 9. Dials are numbered from 0, left to right.
 
 Studio's two dials flank the key grid, centered between its two rows: dial 0 on the left and dial 1 on the right. Scroll to rotate and click to press, as on the + models.
+
+Galleon's dials appear above its touchscreen and keys. Use
+`-connect galleon-100` to try attaching it, or open `/kiosk/galleon-100` for its
+browser panel. Touch coordinates span 720x384; the four area centers are
+`(180,96)`, `(540,96)`, `(180,288)` and `(540,288)`. Taps, long presses and drags
+use the existing `touch` API. The host draws the area contents and boundaries;
+the emulator does not synthesize four extra key images. `knobPlacement: "above"`
+in `GET /api/devices` puts the dials and touchscreen before the key grid.
 
 Press and release key 0:
 

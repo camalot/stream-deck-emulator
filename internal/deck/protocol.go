@@ -1,6 +1,6 @@
 package deck
 
-// Device identity shared by all models.
+// Default Elgato identity and shared firmware values.
 const (
 	vendorID     = 0x0fd9
 	bcdDevice    = 0x0100

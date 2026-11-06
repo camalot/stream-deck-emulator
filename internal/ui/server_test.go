@@ -145,6 +145,9 @@ func TestDevices(t *testing.T) {
 	if s := byID["studio"]; s.Rows != 2 || s.Cols != 16 || s.Dials != 2 || s.Strip != nil || s.Screen != nil {
 		t.Errorf("studio: %+v", s)
 	}
+	if g := byID["galleon-100"]; g.Rows != 4 || g.Cols != 3 || g.Dials != 2 || g.KnobPlacement != "above" || g.Strip == nil || *g.Strip != (deck.Size{W: 720, H: 384}) || g.Screen != nil || g.TouchKeys != 0 {
+		t.Errorf("galleon-100: %+v", g)
+	}
 }
 
 func TestStudioDialInput(t *testing.T) {

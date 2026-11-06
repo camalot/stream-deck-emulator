@@ -35,7 +35,7 @@ func TestStripRegionOrientation(t *testing.T) {
 	green := color.RGBA{G: 240, A: 255}
 	blue := color.RGBA{B: 240, A: 255}
 	yellow := color.RGBA{R: 240, G: 240, A: 255}
-	for _, m := range []Model{Plus, PlusXL} {
+	for _, m := range []Model{Plus, PlusXL, Galleon100} {
 		t.Run(m.ID, func(t *testing.T) {
 			const w, h = 80, 40
 			size := image.Rect(0, 0, w, h)
@@ -44,6 +44,7 @@ func TestStripRegionOrientation(t *testing.T) {
 				size = image.Rect(0, 0, h, w)
 				corners = []color.RGBA{green, yellow, red, blue}
 			}
+
 			src := image.NewRGBA(size)
 			halfW, halfH := size.Dx()/2, size.Dy()/2
 			for i, c := range corners {
@@ -109,5 +110,35 @@ func TestStripRegionOrientation(t *testing.T) {
 				t.Errorf("second region missing: %v", c)
 			}
 		})
+	}
+}
+
+func TestGalleon100DisplayQuadrants(t *testing.T) {
+	d := attached(Galleon100)
+	colors := []color.RGBA{{R: 240, A: 255}, {G: 240, A: 255}, {B: 240, A: 255}, {R: 240, G: 240, A: 255}}
+	for i, c := range colors {
+		data := solidJPEG(t, 360, 192, c)
+		for part, off := uint16(0), 0; off < len(data); part++ {
+			end := min(off+chunkPayload, len(data))
+			d.Out(0, stripChunk((i%2)*360, (i/2)*192, 360, 192, part, end == len(data), data[off:end]))
+			off = end
+		}
+	}
+	strip := d.Strip()
+	if strip.Bounds() != image.Rect(0, 0, 720, 384) {
+		t.Fatalf("display bounds %v", strip.Bounds())
+	}
+	for i, want := range colors {
+		got := strip.RGBAAt((i%2)*360+180, (i/2)*192+96)
+		for _, diff := range []int{int(got.R) - int(want.R), int(got.G) - int(want.G), int(got.B) - int(want.B)} {
+			if diff < -3 || diff > 3 {
+				t.Errorf("quadrant %d: got %v, want %v", i, got, want)
+				break
+			}
+		}
+	}
+	d.Out(0, keyChunk(11, 0, true, []byte{0xff, 0xd8, 0xff, 0xd9}))
+	if !bytes.Equal(d.KeyImage(11), []byte{0xff, 0xd8, 0xff, 0xd9}) {
+		t.Error("last physical key image missing")
 	}
 }

@@ -25,6 +25,7 @@ test('key orientation corrections preserve layout and input indices', () => {
     ['module-vert', 5, 3, true, false, 'face quarter-turn'],
     ['studio', 2, 16, false, false, 'face'],
     ['pedal', 1, 3, false, false, 'face'],
+    ['galleon-100', 4, 3, false, false, 'face'],
   ];
   for (const [id, rows, cols, rotated, quarterTurn, className] of models) {
     const sent = [];
@@ -48,6 +49,45 @@ test('Neo info screen retains its half-turn correction', () => {
     touchKeys: 2, screen: { w: 248, h: 58 },
   }, () => {});
   assert.equal(deck.panel.children[9].children[0].className, 'face rotated');
+});
+
+test('Galleon puts two dials above a 2-by-2 touchscreen above twelve keys', () => {
+  const sent = [];
+  const deck = createDeck({
+    id: 'galleon-100', rows: 4, cols: 3, dials: 2, knobPlacement: 'above',
+    strip: { w: 720, h: 384 },
+  }, body => sent.push(body));
+  assert.equal(deck.panel.children.length, 14);
+  const [dials, strip, ...keys] = deck.panel.children;
+  assert.equal(dials.className, 'dials-above');
+  assert.equal(dials.children.length, 2);
+  dials.children.forEach((dial, index) => {
+    dial.handlers.pointerdown({ pointerId: 1, clientX: 0 });
+    dial.handlers.pointerup();
+    dial.handlers.wheel({ deltaY: -1, preventDefault() {} });
+    assert.deepEqual(sent.slice(-3), [
+      { type: 'dialPress', index, down: true },
+      { type: 'dialPress', index, down: false },
+      { type: 'dialRotate', index, ticks: 1 },
+    ]);
+  });
+  assert.equal(strip.className, 'strip');
+  strip.setPointerCapture = () => {};
+  strip.getBoundingClientRect = () => ({ left: 10, top: 20, width: 360, height: 192 });
+  for (const [x, y] of [[180, 96], [540, 96], [180, 288], [540, 288]]) {
+    const event = { pointerId: 1, clientX: 10 + x / 2, clientY: 20 + y / 2 };
+    strip.handlers.pointerdown(event);
+    strip.handlers.pointerup(event);
+    assert.deepEqual(sent.at(-1), { type: 'touch', kind: 1, x, y });
+  }
+  keys.forEach((key, index) => {
+    key.handlers.pointerdown();
+    key.handlers.pointerup();
+    assert.deepEqual(sent.slice(-2), [
+      { type: 'key', index, down: true },
+      { type: 'key', index, down: false },
+    ]);
+  });
 });
 
 test('+ XL strip stays horizontal with unchanged touch coordinates', () => {

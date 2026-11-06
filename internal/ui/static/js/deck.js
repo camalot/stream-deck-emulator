@@ -86,12 +86,14 @@ function buildStrip(deck, info, send) {
 function buildDials(deck, info, send) {
   // Centre a row of dials that is narrower than the key grid.
   const offset = Math.max(0, Math.floor((info.cols - info.dials) / 2));
+  const parent = info.knobPlacement === 'above' ? el('div', 'dials-above', deck.panel) : deck.panel;
+  if (parent !== deck.panel) parent.style.gridTemplateColumns = `repeat(${info.dials}, 1fr)`;
   for (let i = 0; i < info.dials; i++) {
-    const dial = el('div', 'dial', deck.panel);
+    const dial = el('div', 'dial', parent);
     if (info.id === 'studio') {
       dial.style.gridColumnStart = i === 0 ? 1 : info.cols + 2;
       dial.style.gridRow = `1 / span ${info.rows}`;
-    } else if (i === 0 && offset) {
+    } else if (parent === deck.panel && i === 0 && offset) {
       dial.style.gridColumnStart = offset + 1;
     }
     let angle = 0;
@@ -179,9 +181,15 @@ export function createDeck(info, send) {
   deck.panel.dataset.model = info.id;
   deck.panel.style.setProperty('--cols', info.cols);
   deck.panel.style.setProperty('--rows', info.rows);
-  buildKeys(deck, info, send);
-  if (info.strip) buildStrip(deck, info, send);
-  if (info.dials) buildDials(deck, info, send);
+  if (info.knobPlacement === 'above') {
+    if (info.dials) buildDials(deck, info, send);
+    if (info.strip) buildStrip(deck, info, send);
+    buildKeys(deck, info, send);
+  } else {
+    buildKeys(deck, info, send);
+    if (info.strip) buildStrip(deck, info, send);
+    if (info.dials) buildDials(deck, info, send);
+  }
   if (info.screen || info.touchKeys) buildInfoBar(deck, info, send);
 
   const hints = [];

@@ -14,7 +14,11 @@ func (d *Device) featureReport(id uint8) ([]byte, bool) {
 	case featureFirmwareLD:
 		firmware(firmwareLD)
 	case featureFirmwareAP2:
-		firmware(firmwareAP2)
+		version := d.model.FirmwareAP2
+		if version == "" {
+			version = firmwareAP2
+		}
+		firmware(version)
 	case featureSerial:
 		r[offSerialLength] = byte(len(d.model.Serial))
 		copy(r[offSerial:], d.model.Serial)

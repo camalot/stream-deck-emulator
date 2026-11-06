@@ -40,7 +40,7 @@ func (m Model) deviceDescriptor() []byte {
 	d := []byte{lenDeviceDesc, descDevice}
 	d = le.AppendUint16(d, bcdUSB)
 	d = append(d, 0, 0, 0, maxPacketSize0) // class, subclass, protocol: set per interface
-	d = le.AppendUint16(d, vendorID)
+	d = le.AppendUint16(d, m.usbVendorID())
 	d = le.AppendUint16(d, m.ProductID)
 	d = le.AppendUint16(d, bcdDevice)
 	return append(d, stringManufacturer, stringProduct, stringSerial, numConfigurations)
@@ -88,7 +88,7 @@ func (m Model) stringDescriptor(index uint8) ([]byte, bool) {
 	case stringLangIDs:
 		return le.AppendUint16([]byte{lenLangIDDesc, descString}, langEnglishUS), true
 	case stringManufacturer:
-		s = manufacturer
+		s = m.usbManufacturer()
 	case stringProduct:
 		s = m.Name
 	case stringSerial:

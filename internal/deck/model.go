@@ -17,6 +17,10 @@ type Model struct {
 	Name      string // USB product string
 	ProductID uint16
 	Serial    string
+	// Zero values retain the Elgato identity used by existing models.
+	VendorID     uint16
+	Manufacturer string
+	FirmwareAP2  string // empty retains the default application firmware version
 
 	Rows, Cols int
 	KeySize    int // key image edge in pixels
@@ -27,16 +31,31 @@ type Model struct {
 	// counter-clockwise. Strip coordinates remain in display orientation.
 	QuarterTurn bool
 
-	Dials     int
-	Strip     Size // touch strip
-	Screen    Size // info screen
-	TouchKeys int  // sensor keys, reported after the regular keys
+	Dials         int
+	KnobPlacement string // empty means below; "above" puts dials and strip above keys
+	Strip         Size   // touch strip
+	Screen        Size   // info screen
+	TouchKeys     int    // sensor keys, reported after the regular keys
 
 	// Features holds the payloads of the static feature reports by report id.
 	Features map[byte][]byte
 }
 
 func (m Model) Keys() int { return m.Rows * m.Cols }
+
+func (m Model) usbVendorID() uint16 {
+	if m.VendorID != 0 {
+		return m.VendorID
+	}
+	return vendorID
+}
+
+func (m Model) usbManufacturer() string {
+	if m.Manufacturer != "" {
+		return m.Manufacturer
+	}
+	return manufacturer
+}
 
 // unitInfo builds the payload of featureUnitInfo: rows, columns, key width,
 // key height, panel width, panel height, then a tail of unknown meaning.
@@ -181,9 +200,29 @@ var Pedal = Model{
 	Features:  features(unitInfo(1, 3, 0, 0, 0)),
 }
 
+// Galleon100 is experimental: identity and dimensions follow the shared
+// streamdeck-layouts.yml catalogue, but HID reports have no hardware capture.
+var Galleon100 = Model{
+	ID:           "galleon-100",
+	Name:         "Corsair Galleon 100",
+	VendorID:     0x1b1c,
+	Manufacturer: "Corsair",
+	ProductID:    0x2b18,
+	Serial:       "EMU00000000012",
+	// Version metadata from Stream Deck's bundled Corsair K100 MK2 firmware.
+	FirmwareAP2:   "3.06.006",
+	Rows:          4,
+	Cols:          3,
+	KeySize:       120,
+	Dials:         2,
+	KnobPlacement: "above",
+	Strip:         Size{W: 720, H: 384},
+	Features:      features(unitInfo(4, 3, 120, 720, 864, 0x04, 0x05, 0x01, 0x04, 0x04)),
+}
+
 // Models lists the emulated variants in bus order.
 func Models() []Model {
-	return []Model{Plus, Neo, MK2, XL, PlusXL, Module, ModuleVert, Studio, Pedal}
+	return []Model{Plus, Neo, MK2, XL, PlusXL, Module, ModuleVert, Studio, Pedal, Galleon100}
 }
 
 func ModelByID(id string) (Model, bool) {

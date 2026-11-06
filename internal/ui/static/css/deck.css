@@ -17,6 +17,8 @@
 }
 .panel[data-model="plus"], .panel[data-model="plus-xl"] { --gf: .4; }
 .panel[data-model="plus-xl"] { --vunits: 8; }
+.panel[data-model="galleon-100"] { --vunits: 8; }
+.dials-above { grid-column: 1 / -1; display: grid; width: 100%; justify-items: center; }
 .panel[data-model="neo"] { --gf: .34; --gy: calc(var(--k) * .34); }
 .panel[data-model="studio"] {
   --units: calc(var(--cols) + 2 + (var(--cols) + 1) * var(--gf));

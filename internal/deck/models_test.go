@@ -34,6 +34,7 @@ func TestModels(t *testing.T) {
 		{"module-vert", 0x00b9, 15, 72, true},
 		{"studio", 0x00aa, 32, 144, false},
 		{"pedal", 0x0086, 3, 0, false},
+		{"galleon-100", 0x2b18, 12, 120, false},
 	}
 	models := Models()
 	if len(models) != len(want) {
@@ -67,6 +68,7 @@ func TestModelGeometry(t *testing.T) {
 	want := map[string][2]int{
 		"xl": {4, 8}, "plus-xl": {4, 9}, "module": {3, 5}, "module-vert": {5, 3},
 		"studio": {2, 16}, "pedal": {1, 3},
+		"galleon-100": {4, 3},
 	}
 	for id, rc := range want {
 		m, ok := ModelByID(id)
@@ -79,6 +81,74 @@ func TestModelGeometry(t *testing.T) {
 		}
 		if info := m.Features[0x08]; int(info[0]) != m.Rows || int(info[1]) != m.Cols {
 			t.Errorf("%s: unit info %v", id, info)
+		}
+	}
+}
+
+func TestGalleon100Identity(t *testing.T) {
+	for _, m := range Models() {
+		wantVendor, wantManufacturer := uint16(0x0fd9), "Elgato"
+		if m.ID == "galleon-100" {
+			wantVendor, wantManufacturer = 0x1b1c, "Corsair"
+		}
+		if got := New(m).Info(); got.VendorID != wantVendor || got.ProductID != m.ProductID {
+			t.Errorf("%s: USB/IP identity %+v", m.ID, got)
+		}
+		if got := binary.LittleEndian.Uint16(m.deviceDescriptor()[8:]); got != wantVendor {
+			t.Errorf("%s: descriptor vendor %#04x", m.ID, got)
+		}
+		want := []byte{byte(2 + len(wantManufacturer)*2), descString}
+		for _, c := range wantManufacturer {
+			want = binary.LittleEndian.AppendUint16(want, uint16(c))
+		}
+		if got, ok := m.stringDescriptor(stringManufacturer); !ok || !bytes.Equal(got, want) {
+			t.Errorf("%s: manufacturer %x, want %x", m.ID, got, want)
+		}
+	}
+}
+
+func TestGalleon100Inputs(t *testing.T) {
+	d := attached(Galleon100)
+	for i := range Galleon100.Keys() {
+		if err := d.SetKey(i, true); err != nil {
+			t.Fatal(err)
+		}
+		r := <-d.In()
+		if binary.LittleEndian.Uint16(r[offInputLength:]) != 12 || r[inputHeader+i] != 1 {
+			t.Errorf("key %d: %x", i, r[:16])
+		}
+	}
+	for i := range Galleon100.Dials {
+		if err := d.PressDial(i, true); err != nil {
+			t.Fatal(err)
+		}
+		if r := <-d.In(); r[offDialAction] != dialPress || r[offDialValues+i] != 1 {
+			t.Errorf("dial %d press: %x", i, r[:7])
+		}
+		if err := d.RotateDial(i, -1); err != nil {
+			t.Fatal(err)
+		}
+		if r := <-d.In(); r[offDialAction] != dialRotate || int8(r[offDialValues+i]) != -1 {
+			t.Errorf("dial %d rotate: %x", i, r[:7])
+		}
+	}
+	// Digital buttons are coordinate regions of one touchscreen, not extra keys.
+	for _, p := range [][2]uint16{{180, 96}, {540, 96}, {180, 288}, {540, 288}, {719, 383}} {
+		if err := d.Touch(TouchShort, p[0], p[1], 0, 0); err != nil {
+			t.Fatal(err)
+		}
+		r := <-d.In()
+		if r[offInputKind] != inputTouch || binary.LittleEndian.Uint16(r[offTouchX:]) != p[0] || binary.LittleEndian.Uint16(r[offTouchY:]) != p[1] {
+			t.Errorf("touch %v: %x", p, r[:14])
+		}
+	}
+	for _, err := range []error{
+		d.SetKey(12, true), d.PressDial(2, true), d.RotateDial(2, 1),
+		d.Touch(TouchShort, 720, 0, 0, 0), d.Touch(TouchShort, 0, 384, 0, 0),
+		d.Touch(TouchDrag, 0, 0, 720, 384),
+	} {
+		if !errors.Is(err, ErrInput) {
+			t.Errorf("out-of-range input: %v", err)
 		}
 	}
 }

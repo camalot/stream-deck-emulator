@@ -79,7 +79,7 @@ func (d *Device) Model() Model { return d.model }
 func (d *Device) Info() usbip.Info {
 	return usbip.Info{
 		Speed:              usbip.SpeedHigh,
-		VendorID:           vendorID,
+		VendorID:           d.model.usbVendorID(),
 		ProductID:          d.model.ProductID,
 		BCDDevice:          bcdDevice,
 		ConfigurationValue: configValue,
