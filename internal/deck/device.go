@@ -3,6 +3,7 @@
 package deck
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"image"
@@ -147,7 +148,9 @@ func (d *Device) drain() {
 func (d *Device) Control(s usbip.Setup, out []byte) ([]byte, error) {
 	// wValue carries a type in the high byte and an index or id in the low
 	// byte for both descriptor and report requests.
-	kind, index := uint8(s.Value>>8), uint8(s.Value)
+	var value [2]byte
+	binary.BigEndian.PutUint16(value[:], s.Value)
+	kind, index := value[0], value[1]
 	is := func(requestType, request uint8) bool {
 		return s.RequestType == requestType && s.Request == request
 	}

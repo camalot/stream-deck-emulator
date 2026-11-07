@@ -7,6 +7,12 @@ dotenv:
   - .secrets
   - .env
 
+includes:
+  codeql:
+    taskfile: 'https://raw.githubusercontent.com/camalot/actions/refs/tags/v1/smells/codeql/Taskfile.yml'
+    flatten: true
+    internal: true
+
 tasks:
 
   require-xget:
@@ -120,7 +126,7 @@ tasks:
       - go test ./... -coverprofile=coverage.out
 
   build-snapshot:
-    internal: true
+    # internal: true
     desc: 'CI job "build-snapshot": goreleaser snapshot of every target'
     cmds:
       - goreleaser build --snapshot --clean

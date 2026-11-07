@@ -76,7 +76,7 @@ func (c CLI) args(busID string, extra ...string) []string {
 }
 
 func (c CLI) run(ctx context.Context, args ...string) error {
-	out, err := exec.CommandContext(ctx, c.Path, args...).CombinedOutput()
+	out, err := exec.CommandContext(ctx, c.Path, args...).CombinedOutput() //nolint:gosec // G204: Path is the operator-chosen usbip client (-usbip-cli, PATH or install dir); args are built by c.args
 	if err == nil {
 		return nil
 	}

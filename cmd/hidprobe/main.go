@@ -55,7 +55,11 @@ func main() {
 	if err != nil {
 		fatal(fmt.Errorf("open device: %w", err))
 	}
-	defer syscall.CloseHandle(h)
+	defer func() {
+		if err := syscall.CloseHandle(h); err != nil {
+			fmt.Fprintln(os.Stderr, "close device:", err)
+		}
+	}()
 
 	var attrs struct {
 		Size      uint32
@@ -64,20 +68,26 @@ func main() {
 		Version   uint16
 	}
 	attrs.Size = uint32(unsafe.Sizeof(attrs))
-	procGetAttributes.Call(uintptr(h), uintptr(unsafe.Pointer(&attrs)))
+	if r, _, e := procGetAttributes.Call(uintptr(h), uintptr(unsafe.Pointer(&attrs))); r == 0 { //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
+		fatal(fmt.Errorf("HidD_GetAttributes: %w", e))
+	}
 	fmt.Printf("vid=%04x pid=%04x bcdDevice=%04x\n", attrs.VendorID, attrs.ProductID, attrs.Version)
 	fmt.Printf("manufacturer=%q\n", hidString(h, procGetManufacturerStr))
 	fmt.Printf("product=%q\n", hidString(h, procGetProductString))
 	fmt.Printf("serial=%q\n", hidString(h, procGetSerialString))
 
 	var preparsed uintptr
-	if r, _, e := procGetPreparsedData.Call(uintptr(h), uintptr(unsafe.Pointer(&preparsed))); r == 0 {
+	if r, _, e := procGetPreparsedData.Call(uintptr(h), uintptr(unsafe.Pointer(&preparsed))); r == 0 { //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
 		fatal(fmt.Errorf("HidD_GetPreparsedData: %w", e))
 	}
-	defer procFreePreparsedData.Call(preparsed)
+	defer func() {
+		if r, _, e := procFreePreparsedData.Call(preparsed); r == 0 {
+			fmt.Fprintln(os.Stderr, "HidD_FreePreparsedData:", e)
+		}
+	}()
 
 	caps := make([]byte, capsSize)
-	if r, _, _ := procGetCaps.Call(preparsed, uintptr(unsafe.Pointer(&caps[0]))); r != hidpStatusOK {
+	if r, _, _ := procGetCaps.Call(preparsed, uintptr(unsafe.Pointer(&caps[0]))); r != hidpStatusOK { //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
 		fatal(fmt.Errorf("HidP_GetCaps: status %#x", r))
 	}
 	u16 := func(off int) uint16 { return binary.LittleEndian.Uint16(caps[off:]) }
@@ -97,7 +107,7 @@ func main() {
 	for id := 0; id < 256; id++ {
 		buf := make([]byte, featureLen)
 		buf[0] = byte(id)
-		r, _, _ := procGetFeature.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+		r, _, _ := procGetFeature.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf))) //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
 		if r == 0 {
 			continue
 		}
@@ -112,7 +122,7 @@ func dumpItemCaps(preparsed uintptr, name string, reportType uintptr, buttons, v
 		}
 		buf := make([]byte, int(n)*itemCapsSize)
 		count := n
-		r, _, _ := proc.Call(reportType, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&count)), preparsed)
+		r, _, _ := proc.Call(reportType, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&count)), preparsed) //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
 		if r != hidpStatusOK {
 			fmt.Printf("%s %s caps: status %#x\n", name, kind, r)
 			return
@@ -124,7 +134,7 @@ func dumpItemCaps(preparsed uintptr, name string, reportType uintptr, buttons, v
 				name, kind, c[2], le.Uint16(c[0:]), le.Uint16(c[4:]), le.Uint16(c[10:]), le.Uint16(c[8:]), c[12], le.Uint16(c[56:]), le.Uint16(c[58:]))
 			if kind == "value" {
 				fmt.Printf(" bitSize=%d reportCount=%d logicalMin=%d logicalMax=%d",
-					le.Uint16(c[18:]), le.Uint16(c[20:]), int32(le.Uint32(c[40:])), int32(le.Uint32(c[44:])))
+					le.Uint16(c[18:]), le.Uint16(c[20:]), signed(le.Uint32(c[40:])), signed(le.Uint32(c[44:])))
 			} else {
 				fmt.Printf(" reportCount=%d", le.Uint16(c[16:]))
 			}
@@ -137,10 +147,15 @@ func dumpItemCaps(preparsed uintptr, name string, reportType uintptr, buttons, v
 
 func hidString(h syscall.Handle, proc *syscall.LazyProc) string {
 	buf := make([]uint16, stringBufBytes/2)
-	if r, _, _ := proc.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), stringBufBytes); r == 0 {
+	if r, _, _ := proc.Call(uintptr(h), uintptr(unsafe.Pointer(&buf[0])), stringBufBytes); r == 0 { //nolint:gosec // G103: HID APIs take pointers to caller-owned buffers
 		return ""
 	}
 	return syscall.UTF16ToString(buf)
+}
+
+// signed reinterprets v as a two's complement 32-bit value.
+func signed(v uint32) int64 {
+	return int64(v) - int64(v>>31)<<32
 }
 
 func fatal(err error) {

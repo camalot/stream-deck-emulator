@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
 	"net"
 	"sort"
 	"sync"
@@ -94,7 +95,7 @@ func (s *Server) Export(busID string, dev Device) error {
 	}
 	devNum, ok := s.devNums[busID]
 	if !ok {
-		devNum = firstDevNum + uint32(len(s.devNums))
+		devNum = firstDevNum + clampUint32(len(s.devNums))
 		s.devNums[busID] = devNum
 	}
 	s.exports[busID] = &export{busID: busID, devNum: devNum, dev: dev}
@@ -114,7 +115,9 @@ func (s *Server) Unexport(busID string) {
 	}
 	s.mu.Unlock()
 	if conn != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("usbip: close %s: %v", busID, err)
+		}
 		<-done
 	}
 }
@@ -127,7 +130,11 @@ func (s *Server) Serve(ln net.Listener) error {
 			return err
 		}
 		go func() {
-			defer c.Close()
+			defer func() {
+				if err := c.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+					log.Printf("usbip: %s: close: %v", c.RemoteAddr(), err)
+				}
+			}()
 			if err := s.handle(c); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
 				log.Printf("usbip: %s: %v", c.RemoteAddr(), err)
 			}
@@ -144,7 +151,7 @@ func (s *Server) handle(c net.Conn) error {
 	case opReqDevlist:
 		exports := s.snapshot()
 		buf := opHeader(opRepDevlist, opStatusOK)
-		buf = be.AppendUint32(buf, uint32(len(exports)))
+		buf = be.AppendUint32(buf, clampUint32(len(exports)))
 		for _, e := range exports {
 			info := e.dev.Info()
 			buf = appendDevice(buf, e, info)
@@ -243,7 +250,17 @@ func appendDevice(buf []byte, e *export, info Info) []byte {
 	buf = be.AppendUint16(buf, info.ProductID)
 	buf = be.AppendUint16(buf, info.BCDDevice)
 	return append(buf, info.Class, info.SubClass, info.Protocol,
-		info.ConfigurationValue, info.NumConfig, uint8(len(info.Interfaces)))
+		info.ConfigurationValue, info.NumConfig, clampUint8(len(info.Interfaces)))
+}
+
+// clampUint32 converts a count to uint32, saturating at the maximum.
+func clampUint32(n int) uint32 {
+	return uint32(min(max(int64(n), 0), math.MaxUint32))
+}
+
+// clampUint8 converts a count to uint8, saturating at the maximum.
+func clampUint8(n int) uint8 {
+	return uint8(min(max(n, 0), math.MaxUint8))
 }
 
 func cString(b []byte) string {

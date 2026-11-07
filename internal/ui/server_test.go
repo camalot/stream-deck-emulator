@@ -95,6 +95,16 @@ func TestIndex(t *testing.T) {
 	}
 }
 
+func TestTitleReloadLink(t *testing.T) {
+	r := newRig([]string{testHost})
+	for _, path := range []string{"/", "/kiosk/plus"} {
+		rec := r.do("GET", path, "")
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `<h1 class="title"><a href="">`) {
+			t.Errorf("%s: missing title reload link, status %d", path, rec.Code)
+		}
+	}
+}
+
 func TestKiosk(t *testing.T) {
 	r := newRig([]string{testHost})
 	rec := r.do("GET", "/kiosk/plus", "")

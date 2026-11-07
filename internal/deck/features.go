@@ -20,7 +20,7 @@ func (d *Device) featureReport(id uint8) ([]byte, bool) {
 		}
 		firmware(version)
 	case featureSerial:
-		r[offSerialLength] = byte(len(d.model.Serial))
+		r[offSerialLength] = clampUint8(len(d.model.Serial))
 		copy(r[offSerial:], d.model.Serial)
 	case featureFirmwareAP1:
 		firmware(firmwareAP1)

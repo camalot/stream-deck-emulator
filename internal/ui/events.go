@@ -50,7 +50,9 @@ func events(devices []*deck.Device, lk Linker) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-store")
 		write := func(m message) {
 			data, _ := json.Marshal(m)
-			fmt.Fprintf(w, "data: %s\n\n", data)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 

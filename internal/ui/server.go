@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"image/png"
+	"log"
 	"mime"
 	"net/http"
 	"slices"
@@ -36,9 +37,15 @@ const maxInputBytes = 1024
 
 func init() {
 	// The Windows registry can map these extensions to the wrong type.
-	mime.AddExtensionType(".js", "text/javascript; charset=utf-8")
-	mime.AddExtensionType(".css", "text/css; charset=utf-8")
-	mime.AddExtensionType(".json", "application/json")
+	for ext, typ := range map[string]string{
+		".js":   "text/javascript; charset=utf-8",
+		".css":  "text/css; charset=utf-8",
+		".json": "application/json",
+	} {
+		if err := mime.AddExtensionType(ext, typ); err != nil {
+			log.Printf("ui: register %s type: %v", ext, err)
+		}
+	}
 }
 
 // Linker is the connection side of the API.
@@ -116,7 +123,9 @@ func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
 		}
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("Cache-Control", "no-store")
-		w.Write(data)
+		if _, err := w.Write(data); err != nil {
+			log.Printf("ui: write image: %v", err)
+		}
 	}
 
 	mux := http.NewServeMux()
@@ -169,7 +178,9 @@ func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
 		}
 		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "no-store")
-		png.Encode(w, strip)
+		if err := png.Encode(w, strip); err != nil {
+			log.Printf("ui: encode strip: %v", err)
+		}
 	})
 
 	mux.HandleFunc("GET /api/devices/{id}/screen", func(w http.ResponseWriter, r *http.Request) {
@@ -261,5 +272,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("ui: write json: %v", err)
+	}
 }

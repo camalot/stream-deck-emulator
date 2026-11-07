@@ -31,6 +31,7 @@ body {
 }
 
 .title { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 16px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
+.title a { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
 .title img { flex: none; width: 1.6em; height: 1.6em; }
 
 select, button { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
@@ -55,6 +56,11 @@ button:hover { background: var(--control-hover); }
 .hint { margin: 0; }
 
 /* Kiosk (/kiosk/<id>): only the device, with just the link lamp in the corner. */
-.kiosk .device { background: none; box-shadow: none; border-radius: 0; }
+.kiosk { padding: 0; }
+.kiosk .device { box-sizing: border-box; container-type: inline-size; place-self: safe center; width: 100%; padding: 0; background: none; box-shadow: none; border-radius: 0; }
+.kiosk .title { position: fixed; top: 0; left: 0; width: 100%; margin: 0; pointer-events: none; }
+.kiosk .title a { pointer-events: auto; }
 .kiosk #picker, .kiosk #toggle, .kiosk .hints { display: none; }
 .kiosk .bar { position: fixed; top: 24px; right: 32px; width: auto; min-width: 0; }
+.kiosk .notice { min-height: 0; }
+.kiosk .notice:empty { margin: 0; }

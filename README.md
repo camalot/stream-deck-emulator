@@ -51,6 +51,10 @@ All models speak the v2 protocol. The original Stream Deck and the Mini use the 
 4. Pick a model in the list above the keys and press **Connect**. It appears in the Stream Deck app within a few seconds.
 5. Press **Disconnect** to unplug it. The Stream Deck app remembers the device and its profiles, as it does with real hardware.
 
+For a device-only view, open `/kiosk/<model>` (for example, `/kiosk/studio`).
+The centered panel scales to the browser's width and connects the selected model automatically.
+Click the Stream Deck Emulator title to reload the current page.
+
 ## Limitations
 
 - Galleon 100 support is experimental. It emulates only the Stream Deck section,
@@ -187,5 +191,6 @@ bin\emulator.exe
 ```
 
 Run the Go tests with `go test ./...`. With Node.js 22.12 or newer, run the browser layout tests with `node --test internal/ui/deck.test.mjs`.
+To test kiosk sizing in Chromium, set `CHROME_BIN` to a Chromium executable and run `node --test internal/ui/kiosk.test.mjs`.
 
 </details>

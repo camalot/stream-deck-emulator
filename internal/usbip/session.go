@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"sync"
 )
@@ -45,10 +46,12 @@ func (s *session) run() error {
 		switch cmd := be.Uint32(hdr[offURBCommand:]); cmd {
 		case cmdSubmit:
 			dir, ep := be.Uint32(hdr[offURBDirection:]), be.Uint32(hdr[offURBEndpoint:])
-			length := int(int32(be.Uint32(hdr[offURBLength:])))
-			if length < 0 || length > maxTransferLength {
+			rawLength := be.Uint32(hdr[offURBLength:])
+			// A negative int32 length shows up as a huge uint32 here.
+			if rawLength > maxTransferLength {
 				return errTransferLength
 			}
+			length := int(rawLength)
 			var out []byte
 			if dir == dirOut && length > 0 {
 				out = make([]byte, length)
@@ -161,13 +164,18 @@ func (s *session) nextPending() (pendingIn, bool) {
 	}
 }
 
+// twosComplement encodes a small signed value as a 32-bit wire word.
+func twosComplement(v int) uint32 {
+	return uint32(int64(v) & math.MaxUint32)
+}
+
 func (s *session) reply(cmd, seq uint32, status, actualLength int, data []byte) error {
 	buf := make([]byte, urbHeaderSize, urbHeaderSize+len(data))
 	be.PutUint32(buf[offURBCommand:], cmd)
 	be.PutUint32(buf[offURBSeqNum:], seq)
-	be.PutUint32(buf[offURBStatus:], uint32(int32(status)))
+	be.PutUint32(buf[offURBStatus:], twosComplement(status))
 	if cmd == retSubmit {
-		be.PutUint32(buf[offURBLength:], uint32(int32(actualLength)))
+		be.PutUint32(buf[offURBLength:], twosComplement(actualLength))
 	}
 	buf = append(buf, data...)
 	s.wmu.Lock()

@@ -1,6 +1,9 @@
 package deck
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math"
+)
 
 // Size is a display size in pixels. The zero Size means the display is absent.
 type Size struct {
@@ -60,9 +63,9 @@ func (m Model) usbManufacturer() string {
 // unitInfo builds the payload of featureUnitInfo: rows, columns, key width,
 // key height, panel width, panel height, then a tail of unknown meaning.
 func unitInfo(rows, cols, keySize, panelW, panelH int, tail ...byte) []byte {
-	info := []byte{byte(rows), byte(cols)}
+	info := []byte{clampUint8(rows), clampUint8(cols)}
 	for _, v := range []int{keySize, keySize, panelW, panelH} {
-		info = binary.LittleEndian.AppendUint16(info, uint16(v))
+		info = binary.LittleEndian.AppendUint16(info, clampUint16(v))
 	}
 	return append(info, tail...)
 }
@@ -232,4 +235,14 @@ func ModelByID(id string) (Model, bool) {
 		}
 	}
 	return Model{}, false
+}
+
+// clampUint8 converts a size or count to uint8, saturating at the maximum.
+func clampUint8(n int) uint8 {
+	return uint8(min(max(n, 0), math.MaxUint8))
+}
+
+// clampUint16 converts a size or count to uint16, saturating at the maximum.
+func clampUint16(n int) uint16 {
+	return uint16(min(max(n, 0), math.MaxUint16))
 }

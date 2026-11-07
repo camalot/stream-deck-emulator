@@ -42,7 +42,7 @@ func (d *Device) RotateDial(dial int, ticks int8) error {
 		return ErrInput
 	}
 	r := d.newDialReport(dialRotate)
-	r[offDialValues+dial] = byte(ticks)
+	r[offDialValues+dial] = byte(int(ticks) & 0xff)
 	d.send(r)
 	return nil
 }
@@ -72,7 +72,7 @@ func newInputReport(kind byte, payload int) []byte {
 	r := make([]byte, inputReportSize)
 	r[0] = reportIDInput
 	r[offInputKind] = kind
-	binary.LittleEndian.PutUint16(r[offInputLength:], uint16(payload))
+	binary.LittleEndian.PutUint16(r[offInputLength:], clampUint16(payload))
 	return r
 }
 

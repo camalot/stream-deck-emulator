@@ -90,7 +90,11 @@ func main() {
 	srv.OnSession = mgr.SessionChanged
 
 	go func() { log.Fatal(srv.Serve(usbipLn)) }()
-	go func() { log.Fatal(http.Serve(uiLn, ui.Handler(devices, mgr, uiHosts(uiBound)))) }()
+	uiServer := &http.Server{
+		Handler:           ui.Handler(devices, mgr, uiHosts(uiBound)),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	go func() { log.Fatal(uiServer.Serve(uiLn)) }()
 
 	log.Printf("USB/IP on %s", usbipBound)
 	log.Printf("UI on http://%s", uiBound)
@@ -104,7 +108,9 @@ func main() {
 		log.Print("usbip client not found: attach devices by hand, the UI shows the command")
 	}
 	for _, id := range auto {
-		mgr.Connect(id)
+		if err := mgr.Connect(id); err != nil {
+			log.Printf("connect %s: %v", id, err)
+		}
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -117,7 +123,9 @@ func main() {
 	}()
 	// Detach cleanly so the host does not keep stale virtual devices.
 	for _, id := range ids {
-		mgr.Disconnect(id)
+		if err := mgr.Disconnect(id); err != nil {
+			log.Printf("disconnect %s: %v", id, err)
+		}
 	}
 }
 

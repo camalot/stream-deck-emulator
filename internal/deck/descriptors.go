@@ -51,7 +51,7 @@ func hidDescriptor() []byte {
 	d := []byte{lenHIDDesc, descHID}
 	d = le.AppendUint16(d, bcdHID)
 	d = append(d, countryNone, numClassDescs, descReport)
-	return le.AppendUint16(d, uint16(len(reportDescriptor)))
+	return le.AppendUint16(d, clampUint16(len(reportDescriptor)))
 }
 
 func configDescriptor() []byte {
@@ -77,7 +77,7 @@ func configDescriptor() []byte {
 	}
 	endpoint(endpointIn, inputReportSize)
 	endpoint(endpointOut, outputReportSize)
-	le.PutUint16(d[offConfigTotalLength:], uint16(len(d)))
+	le.PutUint16(d[offConfigTotalLength:], clampUint16(len(d)))
 	return d
 }
 
@@ -97,7 +97,7 @@ func (m Model) stringDescriptor(index uint8) ([]byte, bool) {
 		return nil, false
 	}
 	units := utf16.Encode([]rune(s))
-	d := []byte{byte(lenStringHeader + 2*len(units)), descString}
+	d := []byte{clampUint8(lenStringHeader + 2*len(units)), descString}
 	for _, u := range units {
 		d = le.AppendUint16(d, u)
 	}
