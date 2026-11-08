@@ -171,3 +171,8 @@ tasks:
       SD_EMULATOR_DRY_RUN: "true"
     cmds:
       - goreleaser release --clean --skip=validate,announce,sign,sbom
+
+  start:
+    desc: Start the stream deck emulator
+    cmds:
+      - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -ui 0.0.0.0:8484
