@@ -33,7 +33,7 @@ All models speak the v2 protocol. The original Stream Deck and the Mini use the 
 
 ## Features
 
-- **Browser UI**: Click keys, scroll and press dials, click, hold or drag on the touch strip, and see what the app draws on every screen.
+- **Browser UI**: Click keys, scroll, drag and press dials, click, hold or drag on the touch strip, and see what the app draws on every screen. Dials can be dragged in any direction: right or up turns right, left or down turns left, and a diagonal drag turns by the difference between the two.
 - **Several Devices at Once**: Connect and disconnect each model on its own. The others keep working.
 - **Headless Start**: Connect models from the command line without opening the browser.
 
@@ -138,7 +138,7 @@ A successful `POST` answers `204`. An error answers with a JSON body such as `{"
 
 Keys are numbered from 0, left to right and top to bottom. The touch keys of the Neo follow the regular keys: 8 and 9. Dials are numbered from 0, left to right.
 
-Studio's two dials flank the key grid, centered between its two rows: dial 0 on the left and dial 1 on the right. Scroll to rotate and click to press, as on the + models.
+Studio's two dials flank the key grid, centered between its two rows: dial 0 on the left and dial 1 on the right. Scroll or drag to rotate and click to press, as on the + models.
 
 Galleon's dials appear above its touchscreen and keys. Use
 `-connect galleon-100` to try attaching it, or open `/kiosk/galleon-100` for its

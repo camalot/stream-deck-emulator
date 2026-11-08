@@ -169,24 +169,60 @@ function dialDeck() {
   return { sent, dial };
 }
 
+function swipe(dial, pointerId, ...points) {
+  const [[x, y], ...moves] = points;
+  dial.handlers.pointerdown({ pointerId, clientX: x, clientY: y });
+  for (const [clientX, clientY] of moves) dial.handlers.pointermove({ pointerId, clientX, clientY });
+  dial.handlers.pointerup({ pointerId });
+}
+
 test('swiping a dial sideways rotates it without pressing', () => {
   const { sent, dial } = dialDeck();
-  dial.handlers.pointerdown({ pointerId: 1, clientX: 100 });
-  dial.handlers.pointermove({ pointerId: 1, clientX: 135 });
-  dial.handlers.pointerup({ pointerId: 1 });
+  swipe(dial, 1, [100, 100], [135, 100]);
   assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: 2 }]);
 
   sent.length = 0;
-  dial.handlers.pointerdown({ pointerId: 2, clientX: 100 });
-  dial.handlers.pointermove({ pointerId: 2, clientX: 70 });
-  dial.handlers.pointerup({ pointerId: 2 });
+  swipe(dial, 2, [100, 100], [70, 100]);
   assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: -1 }]);
+});
+
+test('swiping a dial up turns it right and down turns it left', () => {
+  const { sent, dial } = dialDeck();
+  swipe(dial, 1, [100, 100], [100, 65]);
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: 2 }]);
+
+  sent.length = 0;
+  swipe(dial, 2, [100, 100], [100, 135]);
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: -2 }]);
+});
+
+test('a diagonal swipe turns a dial by the difference of its axes', () => {
+  const { sent, dial } = dialDeck();
+  // Up 50 and left 15: net +35, two ticks right.
+  swipe(dial, 1, [100, 100], [85, 50]);
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: 2 }]);
+
+  sent.length = 0;
+  // Up 20 and left 20 cancel out.
+  swipe(dial, 2, [100, 100], [80, 80]);
+  assert.deepEqual(sent, []);
+
+  sent.length = 0;
+  // Down and right together turn right only by their difference: 40 - 5.
+  swipe(dial, 3, [100, 100], [140, 105]);
+  assert.deepEqual(sent, [{ type: 'dialRotate', index: 0, ticks: 2 }]);
+});
+
+test('a swipe that changes direction reverses the dial', () => {
+  const { sent, dial } = dialDeck();
+  swipe(dial, 1, [100, 100], [100, 60], [100, 100], [100, 140]);
+  assert.deepEqual(sent.map(m => m.ticks), [2, -2, -2]);
 });
 
 test('tapping a dial presses and releases it', () => {
   const { sent, dial } = dialDeck();
-  dial.handlers.pointerdown({ pointerId: 1, clientX: 100 });
-  dial.handlers.pointermove({ pointerId: 1, clientX: 103 });
+  dial.handlers.pointerdown({ pointerId: 1, clientX: 100, clientY: 100 });
+  dial.handlers.pointermove({ pointerId: 1, clientX: 103, clientY: 102 });
   dial.handlers.pointerup({ pointerId: 1 });
   assert.deepEqual(sent, [
     { type: 'dialPress', index: 0, down: true },

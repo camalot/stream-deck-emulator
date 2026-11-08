@@ -111,9 +111,11 @@ function buildDials(deck, info, send) {
 }
 
 // dragDial turns a pointer (mouse or touch) on node into presses and
-// rotation: a horizontal drag rotates by one tick per DIAL_DRAG_PX (right is
-// positive), anything else is a press. The press starts after DIAL_PRESS_MS
-// or on release, and a drag cancels it, so a swipe never presses the dial.
+// rotation: a drag in any direction rotates by one tick per DIAL_DRAG_PX of
+// net travel, where right and up are positive and left and down negative, so
+// a diagonal drag turns by the difference of its two axes. Anything else is a
+// press. The press starts after DIAL_PRESS_MS or on release, and a drag
+// cancels it, so a swipe never presses the dial.
 function dragDial(node, rotate, press) {
   let active = null;
   const setDown = value => {
@@ -132,20 +134,28 @@ function dragDial(node, rotate, press) {
   node.addEventListener('pointerdown', e => {
     if (active) return;
     node.setPointerCapture?.(e.pointerId);
-    active = { id: e.pointerId, x: e.clientX, down: false, dragged: false, timer: setTimeout(() => setDown(true), DIAL_PRESS_MS) };
+    active = {
+      id: e.pointerId, x: e.clientX, y: e.clientY, travel: 0, down: false, dragged: false,
+      timer: setTimeout(() => setDown(true), DIAL_PRESS_MS),
+    };
   });
   node.addEventListener('pointermove', e => {
     if (!active || e.pointerId !== active.id) return;
     const dx = e.clientX - active.x;
-    if (!active.dragged && Math.abs(dx) < DIAL_DRAG_START_PX) return;
+    const dy = e.clientY - active.y;
+    if (!active.dragged && Math.hypot(dx, dy) < DIAL_DRAG_START_PX) return;
     if (!active.dragged) {
       active.dragged = true;
       clearTimeout(active.timer);
       setDown(false);
     }
-    const ticks = Math.trunc(dx / DIAL_DRAG_PX);
+    active.x = e.clientX;
+    active.y = e.clientY;
+    // Screen y grows downwards, so up counts as positive.
+    active.travel += dx - dy;
+    const ticks = Math.trunc(active.travel / DIAL_DRAG_PX);
     if (ticks) {
-      active.x += ticks * DIAL_DRAG_PX;
+      active.travel -= ticks * DIAL_DRAG_PX;
       rotate(ticks);
     }
   });

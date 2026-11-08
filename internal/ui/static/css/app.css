@@ -57,7 +57,7 @@ button:hover { background: var(--control-hover); }
 
 /* Kiosk (/kiosk/<id>): only the device, with just the link lamp in the corner. */
 .kiosk { padding: 0; }
-.kiosk .device { box-sizing: border-box; container-type: inline-size; place-self: safe center; width: 100%; padding: 0; background: none; box-shadow: none; border-radius: 0; }
+.kiosk .device { box-sizing: border-box; container-type: inline-size; place-self: safe center; width: 100%; padding: 0; background: none; box-shadow: none; border-radius: 0; padding-right: 5px; }
 .kiosk .title { position: fixed; top: 0; left: 0; width: 100%; margin: 0; pointer-events: none; }
 .kiosk .title a { pointer-events: auto; }
 .kiosk #picker, .kiosk #toggle, .kiosk .hints { display: none; }

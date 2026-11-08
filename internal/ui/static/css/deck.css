@@ -37,6 +37,14 @@
 .key { box-sizing: border-box; width: var(--k); height: var(--k); border: 2px solid #454545; border-radius: 18%; background: #232323; cursor: pointer; overflow: hidden; }
 .key.down, .touchkey.down { transform: scale(.96); }
 .face { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+/* The app sends Studio keys as 144x112 images with the visible 96x96 face centred in them. */
+.panel[data-model="studio"] .face {
+  position: relative;
+  left: calc(-100% * 24 / 96);
+  top: calc(-100% * 8 / 96);
+  width: calc(100% * 144 / 96);
+  height: calc(100% * 112 / 96);
+}
 .face:not([src]) { visibility: hidden; }
 .rotated { transform: rotate(180deg); }
 .quarter-turn { transform: rotate(90deg); }

@@ -33,6 +33,11 @@ test("kiosk panels fit the viewport and empty notices take no space", { skip: !c
         panel.append(dial);
       }
       const measure = () => panel.getBoundingClientRect().width;
+      const contentWidth = () => {
+        const style = getComputedStyle(device);
+        return device.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      };
+      const studioContent = contentWidth();
       const studio = measure();
       const rect = device.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -40,7 +45,8 @@ test("kiosk panels fit the viewport and empty notices take no space", { skip: !c
       const panelRect = panel.getBoundingClientRect();
       const panelCenterY = panelRect.top + panelRect.height / 2;
       const scrollWidth = document.documentElement.scrollWidth;
-      const padding = getComputedStyle(device).padding;
+      const { paddingTop, paddingBottom, paddingLeft } = getComputedStyle(device);
+      const padding = { paddingTop, paddingBottom, paddingLeft };
       const emptyHeight = notice.getBoundingClientRect().height;
       const emptyMargin = getComputedStyle(notice).margin;
       const rotations = [];
@@ -63,18 +69,20 @@ test("kiosk panels fit the viewport and empty notices take no space", { skip: !c
         clientWidth: document.documentElement.clientWidth,
         height: document.documentElement.scrollHeight,
         clientHeight: document.documentElement.clientHeight,
-        panelWidth: measure()
+        panelWidth: measure(),
+        contentWidth: contentWidth()
       };
       notice.style.height = '';
       panel.replaceChildren();
       panel.dataset.model = 'plus';
       panel.style.setProperty('--cols', 4);
       const plus = measure();
+      const plusContent = contentWidth();
       document.body.className = '';
       const normalNoticeMinHeight = getComputedStyle(notice).minHeight;
       document.body.dataset.result = JSON.stringify({
         viewport: innerWidth, viewportHeight: innerHeight, centerX, centerY, panelCenterY, scrollWidth, padding,
-        studio, plus, emptyHeight, emptyMargin, noticeHeight, normalNoticeMinHeight, rotations, verticalOverflow
+        studio, studioContent, plus, plusContent, emptyHeight, emptyMargin, noticeHeight, normalNoticeMinHeight, rotations, verticalOverflow
       });
     </script>`;
   const url = `data:text/html;base64,${Buffer.from(html).toString("base64")}`;
@@ -88,10 +96,12 @@ test("kiosk panels fit the viewport and empty notices take no space", { skip: !c
     assert.ok(encoded, "browser did not produce layout measurements");
     const result = JSON.parse(encoded.replaceAll("&quot;", '"'));
     assert.equal(result.viewport, width);
-    assert.ok(Math.abs(result.studio - width) < 1, `Studio width: ${result.studio}`);
-    assert.ok(Math.abs(result.plus - width) < 1, `Plus width: ${result.plus}`);
+    // The device may reserve a little right padding; panels fill the rest of the width.
+    assert.ok(result.studioContent > width - 16, `Studio content width: ${result.studioContent}`);
+    assert.ok(Math.abs(result.studio - result.studioContent) < 1, `Studio width: ${result.studio}, want ${result.studioContent}`);
+    assert.ok(Math.abs(result.plus - result.plusContent) < 1, `Plus width: ${result.plus}, want ${result.plusContent}`);
     assert.equal(result.scrollWidth, width);
-    assert.equal(result.padding, "0px");
+    assert.deepEqual(result.padding, { paddingTop: "0px", paddingBottom: "0px", paddingLeft: "0px" });
     assert.ok(Math.abs(result.centerX - width / 2) < 1, `horizontal center: ${result.centerX}`);
     assert.ok(Math.abs(result.centerY - result.viewportHeight / 2) < 1, `vertical center: ${result.centerY}`);
     assert.ok(Math.abs(result.panelCenterY - result.viewportHeight / 2) < 1, `panel center: ${result.panelCenterY}`);
@@ -105,6 +115,6 @@ test("kiosk panels fit the viewport and empty notices take no space", { skip: !c
     }
     assert.ok(result.verticalOverflow.height > result.verticalOverflow.clientHeight);
     assert.equal(result.verticalOverflow.width, result.verticalOverflow.clientWidth);
-    assert.ok(Math.abs(result.verticalOverflow.panelWidth - result.verticalOverflow.clientWidth) < 1);
+    assert.ok(Math.abs(result.verticalOverflow.panelWidth - result.verticalOverflow.contentWidth) < 1);
   }
 });
