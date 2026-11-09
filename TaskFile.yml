@@ -136,7 +136,7 @@ tasks:
       - task: build-snapshot
       - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -version
       - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -help
-      - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe
+      - ./dist/stream-deck-emulator-windows_windows_amd64_v1/stream-deck-emulator.exe -ui 0.0.0.0:8484
 
   ci:
     desc: Run every check the ci.yml workflow runs, in the same order
