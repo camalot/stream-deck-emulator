@@ -86,7 +86,7 @@ layouts:
     width: 25.8
     height: 4.54
     elements:
-      - { type: key, count: 36, columns: 18, x: 1.36, y: 0, width: 1, height: 1, gapX: 0.24, gapY: 0.24 }
-      - { type: strip, x: 1.36, y: 2.48, width: 23.08, height: 1.923333 }
+      - { type: key, count: 36, columns: 18, x: 1.36, y: 0.2, width: 1, height: 1, gapX: 0.30, gapY: 0.24 }
+      - { type: strip, x: 1.36, y: 2.58, width: 23.08, height: 1.923333 }
       - { type: dial, index: 0, count: 3, columns: 1, x: 0.1, y: 0.32, width: 0.8, height: 0.8, gapY: 0.84 }
       - { type: dial, index: 3, count: 3, columns: 1, x: 24.9, y: 0.32, width: 0.8, height: 0.8, gapY: 0.84 }

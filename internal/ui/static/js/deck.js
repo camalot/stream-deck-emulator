@@ -21,12 +21,32 @@ function el(tag, className, parent) {
 }
 
 // picture makes an image that keeps its old picture on screen until the next
-// one has loaded, and goes blank when the device has none.
-function picture(className, parent) {
+// one has loaded, and goes blank when the device has none. Coalesce updates
+// during a download rather than replacing src and aborting the response.
+function picture(className, parent, url) {
   const img = el('img', className, parent);
   img.alt = '';
   img.draggable = false;
-  img.addEventListener('error', () => img.removeAttribute('src'));
+  let loading = false;
+  let pending = false;
+  img.refresh = () => {
+    if (loading) {
+      pending = true;
+      return;
+    }
+    loading = true;
+    pending = false;
+    img.src = url();
+  };
+  const finish = () => {
+    loading = false;
+    if (pending) img.refresh();
+  };
+  img.addEventListener('load', finish);
+  img.addEventListener('error', () => {
+    img.removeAttribute('src');
+    finish();
+  });
   return img;
 }
 
@@ -46,14 +66,14 @@ function pressable(node, report) {
 
 function buildKey(deck, info, send, index) {
   const key = el('div', 'key', deck.panel);
-  deck.keys[index] = picture(info.quarterTurn ? 'face quarter-turn' : info.rotated ? 'face rotated' : 'face', key);
+  deck.keys[index] = picture(info.quarterTurn ? 'face quarter-turn' : info.rotated ? 'face rotated' : 'face', key, () => keyUrl(info.id, index));
   pressable(key, (down) => send({ type: 'key', index, down }));
   return key;
 }
 
 function buildStrip(deck, info, send) {
   const { w, h } = info.strip;
-  const strip = (deck.strip = picture('strip', deck.panel));
+  const strip = (deck.strip = picture('strip', deck.panel, () => stripUrl(info.id)));
   strip.style.setProperty('--w', w);
   strip.style.setProperty('--h', h);
   const point = (e) => {
@@ -178,7 +198,7 @@ function buildTouchKey(deck, info, send, index) {
 
 function buildScreen(deck, info) {
   const screen = el('div', 'screen', deck.panel);
-  deck.screen = picture(info.rotated ? 'face rotated' : 'face', screen);
+  deck.screen = picture(info.rotated ? 'face rotated' : 'face', screen, () => screenUrl(info.id));
   return screen;
 }
 
@@ -223,13 +243,13 @@ export function createDeck(info, layout, send) {
   if (info.touchKeys) hints.push('hint.touchkey');
 
   const refreshKey = (i) => {
-    deck.keys[i].src = keyUrl(info.id, i);
+    deck.keys[i].refresh();
   };
   const refreshStrip = () => {
-    if (deck.strip) deck.strip.src = stripUrl(info.id);
+    if (deck.strip) deck.strip.refresh();
   };
   const refreshScreen = () => {
-    if (deck.screen) deck.screen.src = screenUrl(info.id);
+    if (deck.screen) deck.screen.refresh();
   };
 
   return {

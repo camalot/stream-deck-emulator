@@ -7,7 +7,18 @@ class Element {
   dataset = {};
   style = { setProperty() {} };
   handlers = {};
+  sources = [];
   classList = { toggle() {} };
+  set src(value) {
+    this.sources.push(value);
+    this.source = value;
+  }
+  get src() {
+    return this.source;
+  }
+  removeAttribute(name) {
+    if (name === 'src') this.source = undefined;
+  }
   append(child) {
     this.children.push(child);
   }
@@ -50,6 +61,53 @@ function layoutDeck(info, send) {
   // validates the actual bundled YAML and completeness of its mappings.
   return createDeck(info, { id: info.id, width: 24, height: 10, elements }, send);
 }
+
+test('image refreshes finish in flight and coalesce bursts into the latest frame', (t) => {
+  let now = 1000;
+  t.mock.method(Date, 'now', () => now);
+  const deck = layoutDeck({ id: 'plus', rows: 1, cols: 2, strip: { w: 800, h: 100 }, screen: { w: 248, h: 58 } }, () => {});
+  const key = deck.panel.children[0].children[0];
+  const otherKey = deck.panel.children[1].children[0];
+  const strip = deck.panel.children[2];
+  const screen = deck.panel.children[3].children[0];
+  for (const [img, refresh, path] of [
+    [key, () => deck.refreshKey(0), '/key/0'],
+    [strip, () => deck.refreshStrip(), '/strip'],
+    [screen, () => deck.refreshScreen(), '/screen'],
+  ]) {
+    refresh();
+    const first = img.src;
+    for (let i = 0; i < 20; i++) refresh();
+    assert.deepEqual(img.sources, [first], path);
+    now++;
+    img.handlers.load();
+    assert.equal(img.sources.length, 2, path);
+    assert.equal(img.src, `/api/devices/plus${path}?t=${now}`, 'the next URL is generated when the download finishes');
+    img.handlers.load();
+    assert.equal(img.sources.length, 2, 'no request without another update');
+    refresh();
+    assert.equal(img.sources.length, 3, 'refresh after idle starts immediately');
+  }
+  deck.refreshKey(1);
+  assert.equal(otherKey.sources.length, 1, 'each image loads independently');
+});
+
+test('failed images clear and release pending refreshes without getting stuck', () => {
+  const deck = layoutDeck({ id: 'plus', rows: 1, cols: 1 }, () => {});
+  const img = deck.panel.children[0].children[0];
+  deck.refreshKey(0);
+  deck.refreshKey(0);
+  img.handlers.error();
+  assert.equal(img.sources.length, 2, 'a pending update retries after failure');
+  assert.ok(img.src, 'the retry source is not cleared');
+  img.handlers.error();
+  assert.equal(img.src, undefined, 'an empty or failed image goes blank');
+  assert.equal(img.sources.length, 2, 'failure alone does not spin retries');
+  deck.refreshKey(0);
+  assert.equal(img.sources.length, 3, 'later updates still load');
+  img.handlers.load();
+  assert.equal(img.sources.length, 3);
+});
 
 test('key orientation corrections preserve layout and input indices', () => {
   const models = [

@@ -88,12 +88,12 @@ const layout = {
     ...Array.from({ length: 36 }, (_, index) => ({
       type: 'key',
       index,
-      x: 1.36 + (index % 18) * 1.24,
-      y: Math.floor(index / 18) * 1.24,
+      x: 1.36 + (index % 18) * 1.3,
+      y: 0.2 + Math.floor(index / 18) * 1.24,
       width: 1,
       height: 1,
     })),
-    { type: 'strip', index: 0, x: 1.36, y: 2.48, width: 23.08, height: 1.923333 },
+    { type: 'strip', index: 0, x: 1.36, y: 2.58, width: 23.08, height: 1.923333 },
     ...Array.from({ length: 6 }, (_, index) => ({
       type: 'dial',
       index,
@@ -113,7 +113,7 @@ test('layout geometry preserves source indices, images and input coordinates', (
   const deck = createDeck(info, shuffled, (body) => inputs.push(body));
   assert.equal(deck.panel.dataset.layout, 'custom');
   const key = deck.panel.children.find((n) => n.className === 'key' && n.dataset.index === 35);
-  assert.equal(key.style.top, `${(1.24 / layout.height) * 100}%`);
+  assert.equal(key.style.top, `${(1.44 / layout.height) * 100}%`);
   key.emit('pointerdown');
   key.emit('pointerup');
   assert.deepEqual(inputs.splice(0), [

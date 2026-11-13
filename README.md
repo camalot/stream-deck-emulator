@@ -263,6 +263,13 @@ curl -o key0.jpg http://127.0.0.1:8484/api/devices/plus/key/0
 
 Key and info screen JPEGs are returned as the app sent them. `rotated` in `GET /api/devices` indicates a 180-degree display correction (Neo, MK.2, XL and Module variants). `quarterTurn` indicates a 90-degree clockwise correction for + XL key JPEGs. The browser applies these corrections without changing key order. Touch strip PNGs are already upright: + XL regions are rotated clockwise before composition, keeping touch coordinates unchanged.
 
+The browser allows one download per image at a time. Updates received during a
+download are combined into one refresh of the latest frame afterward, so rapid
+display changes do not repeatedly abort image responses. Closing or reloading
+a page can still cause a connection-closed write error in the emulator log;
+`ui: encode strip` with a TCP write error indicates an interrupted download,
+not a failure to encode the PNG.
+
 </details>
 
 <details>

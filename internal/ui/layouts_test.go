@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -54,9 +55,14 @@ func TestDefaultLayouts(t *testing.T) {
 		t.Fatalf("keys %d dials %d", len(keys), len(dials))
 	}
 	for i, key := range keys {
-		if key.Index != i || key.Y != float64(i/18)*1.24 || key.X < 1 || key.X >= strip.X+strip.Width {
+		wantX := 1.36 + float64(i%18)*1.30
+		wantY := 0.2 + float64(i/18)*1.24
+		if key.Index != i || math.Abs(key.X-wantX) > 1e-9 || math.Abs(key.Y-wantY) > 1e-9 || key.X < 1 || key.X >= strip.X+strip.Width {
 			t.Errorf("key %d: %+v", i, key)
 		}
+	}
+	if strip.Y != 2.58 {
+		t.Errorf("strip y: %v, want 2.58", strip.Y)
 	}
 	if strip.Y <= keys[35].Y+keys[35].Height {
 		t.Errorf("strip is not beneath both key rows")
