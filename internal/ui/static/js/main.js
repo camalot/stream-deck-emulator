@@ -10,12 +10,13 @@ const notice = document.getElementById('notice');
 const stage = document.getElementById('stage');
 const hints = document.getElementById('hints');
 
-// kioskId is the device of a /kiosk/<id> page, which shows only that device.
+// kioskId selects the view of a /kiosk/<layout-id> page.
 const kioskId = decodeURIComponent(location.pathname.match(/^\/kiosk\/([^/]+)\/?$/)?.[1] ?? '') || null;
 if (kioskId) document.body.classList.add('kiosk');
 
 const devices = new Map();
-// The device on the page.
+const layouts = new Map();
+// The layout on the page.
 let current = null;
 
 function isLive(d) {
@@ -24,7 +25,7 @@ function isLive(d) {
 
 function renderLink(d) {
   const { state } = d.link;
-  d.option.textContent = isLive(d) ? `${d.info.name} (${t(`status.${state}`)})` : d.info.name;
+  d.option.textContent = isLive(d) ? `${d.layout.name} (${t(`status.${state}`)})` : d.layout.name;
   if (d === current) renderBar();
 }
 
@@ -56,36 +57,41 @@ function renderText() {
   document.title = t('app.title');
   picker.setAttribute('aria-label', t('device.label'));
   translate(document);
-  for (const d of devices.values()) renderLink(d);
+  for (const d of layouts.values()) renderLink(d);
 }
 
-function addDevice(info) {
+function addLayout(info, layout) {
   const d = { info, link: info.link, actionError: null };
-  d.deck = createDeck(info, body => api.sendInput(info.id, body));
+  d.layout = layout;
+  d.deck = createDeck(info, layout, (body) => api.sendInput(info.id, body));
   d.deck.panel.hidden = true;
   stage.append(d.deck.panel);
-  d.option = new Option('', info.id);
+  d.option = new Option('', layout.id);
   picker.add(d.option);
-  devices.set(info.id, d);
+  layouts.set(layout.id, d);
 }
 
 function savedDevice() {
-  try { return localStorage.getItem('device'); } catch { return null; }
+  try {
+    return localStorage.getItem('device');
+  } catch {
+    return null;
+  }
 }
 
 // pickDevice prefers the last choice, then a device that is already live.
 function pickDevice() {
   if (kioskId) return kioskId;
   const saved = savedDevice();
-  if (devices.has(saved)) return saved;
-  const live = [...devices.values()].find(isLive);
-  return (live ?? devices.values().next().value)?.info.id;
+  if (layouts.has(saved)) return saved;
+  const live = [...layouts.values()].find(isLive);
+  return (live ?? layouts.values().next().value)?.layout.id;
 }
 
 function showDevice(id) {
-  current = devices.get(id) ?? null;
+  current = layouts.get(id) ?? null;
   if (!current) return;
-  for (const d of devices.values()) d.deck.panel.hidden = d !== current;
+  for (const d of layouts.values()) d.deck.panel.hidden = d !== current;
   picker.value = id;
   hints.replaceChildren();
   for (const key of current.deck.hints) {
@@ -96,27 +102,33 @@ function showDevice(id) {
     hints.append(line);
   }
   if (!kioskId) {
-    try { localStorage.setItem('device', id); } catch { /* private mode */ }
+    try {
+      localStorage.setItem('device', id);
+    } catch {
+      /* private mode */
+    }
   }
   renderBar();
 }
 
-// known wraps an event handler so that it gets the device instead of its id
-// and is skipped for a device the page does not have.
-const known = fn => (id, ...args) => {
-  const d = devices.get(id);
-  if (d) fn(d, ...args);
-};
+// Fan source-device events out to every view of that device.
+const known =
+  (fn) =>
+  (id, ...args) => {
+    for (const d of layouts.values()) {
+      if (d.info.id === id) fn(d, ...args);
+    }
+  };
 
 function listen() {
   api.listen({
-    open: () => devices.forEach(d => d.deck.refreshAll()),
+    open: () => layouts.forEach((d) => d.deck.refreshAll()),
     key: known((d, index) => d.deck.refreshKey(index)),
-    strip: known(d => d.deck.refreshStrip()),
-    screen: known(d => d.deck.refreshScreen()),
+    strip: known((d) => d.deck.refreshStrip()),
+    screen: known((d) => d.deck.refreshScreen()),
     touchkey: known((d, index, rgb) => d.deck.setTouchColor(index, rgb)),
     brightness: known((d, percent) => d.deck.setBrightness(percent)),
-    reset: known(d => {
+    reset: known((d) => {
       d.deck.refreshAll();
       for (let i = 0; i < d.info.touchKeys; i++) d.deck.setTouchColor(i, 0);
     }),
@@ -130,8 +142,12 @@ function listen() {
 
 async function init() {
   await loadFallback();
-  for (const info of await api.listDevices()) {
-    if (!kioskId || info.id === kioskId) addDevice(info);
+  const [deviceList, layoutList] = await Promise.all([api.listDevices(), api.listLayouts()]);
+  for (const info of deviceList) devices.set(info.id, info);
+  for (const layout of layoutList) {
+    const info = devices.get(layout.sourceId);
+    if (!info) throw new Error(`Unknown layout source: ${layout.sourceId}`);
+    if (!kioskId || layout.id === kioskId) addLayout(info, layout);
   }
   picker.addEventListener('change', () => showDevice(picker.value));
   toggle.addEventListener('click', async () => {
@@ -150,4 +166,7 @@ async function init() {
   }
 }
 
-init();
+init().catch((error) => {
+  notice.textContent = error.message;
+  console.error(error);
+});

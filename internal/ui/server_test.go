@@ -54,7 +54,11 @@ func newRig(hosts []string) *rig {
 		r.devices[m.ID] = d
 		list = append(list, d)
 	}
-	r.h = Handler(list, r.linker, hosts)
+	layouts, err := DefaultLayouts()
+	if err != nil {
+		panic(err)
+	}
+	r.h = Handler(list, r.linker, hosts, layouts)
 	return r
 }
 

@@ -2,7 +2,9 @@ import { keyUrl, stripUrl, screenUrl } from './api.js';
 
 const LONG_PRESS_MS = 500;
 const DRAG_PX = 20;
-const TOUCH_SHORT = 1, TOUCH_LONG = 2, TOUCH_DRAG = 3;
+const TOUCH_SHORT = 1,
+  TOUCH_LONG = 2,
+  TOUCH_DRAG = 3;
 const DIAL_STEP_DEG = 12;
 const DIAL_DRAG_PX = 16;
 const DIAL_DRAG_START_PX = 6;
@@ -31,7 +33,7 @@ function picture(className, parent) {
 // pressable reports presses of node, releasing it when the pointer leaves.
 function pressable(node, report) {
   let down = false;
-  const set = value => {
+  const set = (value) => {
     if (down === value) return;
     down = value;
     node.classList.toggle('down', value);
@@ -42,36 +44,32 @@ function pressable(node, report) {
   node.addEventListener('pointerleave', () => set(false));
 }
 
-function buildKeys(deck, info, send) {
-  for (let i = 0; i < info.rows * info.cols; i++) {
-    const key = el('div', 'key', deck.panel);
-    if (info.id === 'studio') {
-      key.style.gridColumnStart = i % info.cols + 2;
-      key.style.gridRowStart = Math.floor(i / info.cols) + 1;
-    }
-    deck.keys.push(picture(info.quarterTurn ? 'face quarter-turn' : info.rotated ? 'face rotated' : 'face', key));
-    pressable(key, down => send({ type: 'key', index: i, down }));
-  }
+function buildKey(deck, info, send, index) {
+  const key = el('div', 'key', deck.panel);
+  deck.keys[index] = picture(info.quarterTurn ? 'face quarter-turn' : info.rotated ? 'face rotated' : 'face', key);
+  pressable(key, (down) => send({ type: 'key', index, down }));
+  return key;
 }
 
 function buildStrip(deck, info, send) {
   const { w, h } = info.strip;
-  const strip = deck.strip = picture('strip', deck.panel);
+  const strip = (deck.strip = picture('strip', deck.panel));
   strip.style.setProperty('--w', w);
   strip.style.setProperty('--h', h);
-  const point = e => {
+  const point = (e) => {
     const r = strip.getBoundingClientRect();
     const clamp = (v, max) => Math.max(0, Math.min(max - 1, Math.round(v)));
-    return { x: clamp((e.clientX - r.left) * w / r.width, w), y: clamp((e.clientY - r.top) * h / r.height, h) };
+    return { x: clamp(((e.clientX - r.left) * w) / r.width, w), y: clamp(((e.clientY - r.top) * h) / r.height, h) };
   };
   let start = null;
-  strip.addEventListener('pointerdown', e => {
+  strip.addEventListener('pointerdown', (e) => {
     strip.setPointerCapture(e.pointerId);
     start = { ...point(e), time: performance.now() };
   });
-  strip.addEventListener('pointerup', e => {
+  strip.addEventListener('pointerup', (e) => {
     if (!start) return;
-    const from = start, to = point(e);
+    const from = start,
+      to = point(e);
     start = null;
     if (Math.hypot(to.x - from.x, to.y - from.y) > DRAG_PX) {
       send({ type: 'touch', kind: TOUCH_DRAG, x: from.x, y: from.y, x2: to.x, y2: to.y });
@@ -80,34 +78,35 @@ function buildStrip(deck, info, send) {
       send({ type: 'touch', kind, x: from.x, y: from.y });
     }
   });
-  strip.addEventListener('pointercancel', () => { start = null; });
+  strip.addEventListener('pointercancel', () => {
+    start = null;
+  });
+  return strip;
 }
 
-function buildDials(deck, info, send) {
-  // Centre a row of dials that is narrower than the key grid.
-  const offset = Math.max(0, Math.floor((info.cols - info.dials) / 2));
-  const parent = info.knobPlacement === 'above' ? el('div', 'dials-above', deck.panel) : deck.panel;
-  if (parent !== deck.panel) parent.style.gridTemplateColumns = `repeat(${info.dials}, 1fr)`;
-  for (let i = 0; i < info.dials; i++) {
-    const dial = el('div', 'dial', parent);
-    if (info.id === 'studio') {
-      dial.style.gridColumnStart = i === 0 ? 1 : info.cols + 2;
-      dial.style.gridRow = `1 / span ${info.rows}`;
-    } else if (parent === deck.panel && i === 0 && offset) {
-      dial.style.gridColumnStart = offset + 1;
-    }
-    let angle = 0;
-    const rotate = ticks => {
-      angle += ticks * DIAL_STEP_DEG;
-      dial.style.rotate = `${angle}deg`;
-      send({ type: 'dialRotate', index: i, ticks });
-    };
-    dial.addEventListener('wheel', e => {
+function buildDial(deck, send, index) {
+  // Rotate the face, not the positioned hit target.
+  const target = el('div', 'dial-target', deck.panel);
+  const dial = el('div', 'dial', target);
+  let angle = 0;
+  const rotate = (ticks) => {
+    angle += ticks * DIAL_STEP_DEG;
+    dial.style.rotate = `${angle}deg`;
+    send({ type: 'dialRotate', index, ticks });
+  };
+  target.addEventListener(
+    'wheel',
+    (e) => {
       e.preventDefault();
       rotate(e.deltaY < 0 ? 1 : -1);
-    }, { passive: false });
-    dragDial(dial, rotate, down => send({ type: 'dialPress', index: i, down }));
-  }
+    },
+    { passive: false },
+  );
+  dragDial(target, rotate, (down) => {
+    dial.classList.toggle('down', down);
+    send({ type: 'dialPress', index, down });
+  });
+  return target;
 }
 
 // dragDial turns a pointer (mouse or touch) on node into presses and
@@ -118,7 +117,7 @@ function buildDials(deck, info, send) {
 // cancels it, so a swipe never presses the dial.
 function dragDial(node, rotate, press) {
   let active = null;
-  const setDown = value => {
+  const setDown = (value) => {
     if (!active || active.down === value) return;
     active.down = value;
     node.classList.toggle('down', value);
@@ -131,15 +130,20 @@ function dragDial(node, rotate, press) {
     setDown(false);
     active = null;
   };
-  node.addEventListener('pointerdown', e => {
+  node.addEventListener('pointerdown', (e) => {
     if (active) return;
     node.setPointerCapture?.(e.pointerId);
     active = {
-      id: e.pointerId, x: e.clientX, y: e.clientY, travel: 0, down: false, dragged: false,
+      id: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      travel: 0,
+      down: false,
+      dragged: false,
       timer: setTimeout(() => setDown(true), DIAL_PRESS_MS),
     };
   });
-  node.addEventListener('pointermove', e => {
+  node.addEventListener('pointermove', (e) => {
     if (!active || e.pointerId !== active.id) return;
     const dx = e.clientX - active.x;
     const dy = e.clientY - active.y;
@@ -166,50 +170,67 @@ function dragDial(node, rotate, press) {
   });
 }
 
-// buildInfoBar lays out the touch keys around the info screen.
-function buildInfoBar(deck, info, send) {
-  const keyCount = info.rows * info.cols;
-  const touchKey = i => {
-    const node = deck.touchKeys[i] = el('div', 'touchkey', deck.panel);
-    pressable(node, down => send({ type: 'key', index: keyCount + i, down }));
-  };
-  const left = Math.ceil(info.touchKeys / 2);
-  for (let i = 0; i < left; i++) touchKey(i);
-  if (info.screen) {
-    const screen = el('div', 'screen', deck.panel);
-    screen.style.setProperty('--w', info.screen.w);
-    screen.style.setProperty('--h', info.screen.h);
-    screen.style.setProperty('--span', Math.max(1, info.cols - info.touchKeys));
-    deck.screen = picture(info.rotated ? 'face rotated' : 'face', screen);
-  }
-  for (let i = left; i < info.touchKeys; i++) touchKey(i);
+function buildTouchKey(deck, info, send, index) {
+  const node = (deck.touchKeys[index] = el('div', 'touchkey', deck.panel));
+  pressable(node, (down) => send({ type: 'key', index: info.rows * info.cols + index, down }));
+  return node;
 }
 
-// createDeck builds the panel of one model. send(body) delivers its input.
-export function createDeck(info, send) {
+function buildScreen(deck, info) {
+  const screen = el('div', 'screen', deck.panel);
+  deck.screen = picture(info.rotated ? 'face rotated' : 'face', screen);
+  return screen;
+}
+
+// Layout geometry is presentation-only; every input and image uses source indices.
+export function createDeck(info, layout, send) {
   const deck = { panel: el('div', 'panel'), keys: [], touchKeys: [], strip: null, screen: null };
   deck.panel.dataset.model = info.id;
-  deck.panel.style.setProperty('--cols', info.cols);
-  deck.panel.style.setProperty('--rows', info.rows);
-  if (info.knobPlacement === 'above') {
-    if (info.dials) buildDials(deck, info, send);
-    if (info.strip) buildStrip(deck, info, send);
-    buildKeys(deck, info, send);
-  } else {
-    buildKeys(deck, info, send);
-    if (info.strip) buildStrip(deck, info, send);
-    if (info.dials) buildDials(deck, info, send);
+  deck.panel.dataset.layout = layout.id;
+  deck.panel.style.setProperty('--layout-width', layout.width);
+  deck.panel.style.setProperty('--layout-height', layout.height);
+  for (const item of layout.elements) {
+    let node;
+    switch (item.type) {
+      case 'key':
+        node = buildKey(deck, info, send, item.index);
+        break;
+      case 'dial':
+        node = buildDial(deck, send, item.index);
+        break;
+      case 'strip':
+        node = buildStrip(deck, info, send);
+        break;
+      case 'touchKey':
+        node = buildTouchKey(deck, info, send, item.index);
+        break;
+      case 'screen':
+        node = buildScreen(deck, info);
+        break;
+      default:
+        throw new Error(`Unknown layout element: ${item.type}`);
+    }
+    node.dataset.index = item.index;
+    node.style.left = `${(item.x / layout.width) * 100}%`;
+    node.style.top = `${(item.y / layout.height) * 100}%`;
+    node.style.width = `${(item.width / layout.width) * 100}%`;
+    node.style.height = `${(item.height / layout.height) * 100}%`;
   }
-  if (info.screen || info.touchKeys) buildInfoBar(deck, info, send);
 
   const hints = [];
   if (info.dials) hints.push('hint.dial');
   if (info.strip) hints.push('hint.strip');
   if (info.touchKeys) hints.push('hint.touchkey');
 
-  const refreshKey = i => { deck.keys[i].src = keyUrl(info.id, i); };
-  const refreshStrip = () => { if (deck.strip) deck.strip.src = stripUrl(info.id); };
-  const refreshScreen = () => { if (deck.screen) deck.screen.src = screenUrl(info.id); };
+  const refreshKey = (i) => {
+    deck.keys[i].src = keyUrl(info.id, i);
+  };
+  const refreshStrip = () => {
+    if (deck.strip) deck.strip.src = stripUrl(info.id);
+  };
+  const refreshScreen = () => {
+    if (deck.screen) deck.screen.src = screenUrl(info.id);
+  };
 
   return {
     panel: deck.panel,
@@ -229,7 +250,7 @@ export function createDeck(info, send) {
       else node.style.removeProperty('--color');
     },
     setBrightness(percent) {
-      deck.panel.style.setProperty('--brightness', MIN_BRIGHTNESS + (1 - MIN_BRIGHTNESS) * percent / 100);
+      deck.panel.style.setProperty('--brightness', MIN_BRIGHTNESS + ((1 - MIN_BRIGHTNESS) * percent) / 100);
     },
   };
 }

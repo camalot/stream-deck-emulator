@@ -44,6 +44,7 @@ func main() {
 	uiAddr := flag.String("ui", "127.0.0.1:8484", "web UI listen address")
 	cliPath := flag.String("usbip-cli", "", "path of the usbip client (default: PATH, then the usbip-win2 install directory)")
 	connect := flag.String("connect", "", "comma-separated models to connect at start: "+strings.Join(ids, ", "))
+	layoutPath := flag.String("layouts", "", "YAML file adding or replacing browser and kiosk layouts")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
@@ -52,6 +53,10 @@ func main() {
 		return
 	}
 
+	layouts, err := loadLayouts(*layoutPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	auto, err := parseConnect(*connect, ids)
 	if err != nil {
 		log.Fatal(err)
@@ -91,7 +96,7 @@ func main() {
 
 	go func() { log.Fatal(srv.Serve(usbipLn)) }()
 	uiServer := &http.Server{
-		Handler:           ui.Handler(devices, mgr, uiHosts(uiBound)),
+		Handler:           ui.Handler(devices, mgr, uiHosts(uiBound), layouts),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() { log.Fatal(uiServer.Serve(uiLn)) }()
@@ -127,6 +132,29 @@ func main() {
 			log.Printf("disconnect %s: %v", id, err)
 		}
 	}
+}
+
+func loadLayouts(path string) ([]ui.Layout, error) {
+	layouts, err := ui.DefaultLayouts()
+	if err != nil {
+		return nil, err
+	}
+	if path == "" {
+		return layouts, nil
+	}
+	f, err := os.Open(path) // #nosec G304 -- The operator explicitly selects the configuration file via -layouts.
+	if err != nil {
+		return nil, fmt.Errorf("-layouts: %w", err)
+	}
+	custom, parseErr := ui.ParseLayouts(f, deck.Models())
+	closeErr := f.Close()
+	if parseErr != nil {
+		return nil, fmt.Errorf("-layouts %q: %w", path, parseErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("-layouts %q: %w", path, closeErr)
+	}
+	return ui.MergeLayouts(layouts, custom), nil
 }
 
 // parseConnect splits the -connect value into model ids, dropping blanks

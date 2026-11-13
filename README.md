@@ -9,24 +9,23 @@ English | [Русский](README.ru.md)
   <img alt="Stream Deck Emulator: volume and brightness on Stream Deck +, then media controls on Stream Deck Neo" src="assets/demo.gif" width="800">
 </p>
 
-
 A virtual Stream Deck for the real Stream Deck application. The emulator presents itself to Windows as a USB device, so the Stream Deck app, your plugins and your profiles behave exactly as they do with hardware.
 
 It is built for plugin developers who do not own every model.
 
 ## Supported Models
 
-| Model | Id | Emulated |
-|---|---|---|
-| Stream Deck + | `plus` | 8 keys, 4 dials, touch strip |
-| Stream Deck Neo | `neo` | 8 keys, 2 touch keys, info screen |
-| Stream Deck MK.2 | `mk2` | 15 keys |
-| Stream Deck XL | `xl` | 32 keys (8x4) |
-| Stream Deck + XL | `plus-xl` | 36 keys (9x4), 6 dials, touch strip |
-| Stream Deck Module | `module` | 15 keys (5x3) |
-| Stream Deck Module Vertical | `module-vert` | 15 keys (3x5), same product id as Module |
-| Stream Deck Studio | `studio` | 32 keys (16x2), 2 dials at the left and right |
-| Stream Deck Pedal | `pedal` | 3 keys, no displays |
+| Model                              | Id            | Emulated                                           |
+| ---------------------------------- | ------------- | -------------------------------------------------- |
+| Stream Deck +                      | `plus`        | 8 keys, 4 dials, touch strip                       |
+| Stream Deck Neo                    | `neo`         | 8 keys, 2 touch keys, info screen                  |
+| Stream Deck MK.2                   | `mk2`         | 15 keys                                            |
+| Stream Deck XL                     | `xl`          | 32 keys (8x4)                                      |
+| Stream Deck + XL                   | `plus-xl`     | 36 keys (9x4), 6 dials, touch strip                |
+| Stream Deck Module                 | `module`      | 15 keys (5x3)                                      |
+| Stream Deck Module Vertical        | `module-vert` | 15 keys (3x5), same product id as Module           |
+| Stream Deck Studio                 | `studio`      | 32 keys (16x2), 2 dials at the left and right      |
+| Stream Deck Pedal                  | `pedal`       | 3 keys, no displays                                |
 | Corsair Galleon 100 (experimental) | `galleon-100` | 12 keys (3x4), 2 dials above a 720x384 touchscreen |
 
 All models speak the v2 protocol. The original Stream Deck and the Mini use the older v1 protocol and are not emulated yet.
@@ -54,6 +53,89 @@ All models speak the v2 protocol. The original Stream Deck and the Mini use the 
 For a device-only view, open `/kiosk/<model>` (for example, `/kiosk/studio`).
 The centered panel scales to the browser's width and connects the selected model automatically.
 Click the Stream Deck Emulator title to reload the current page.
+
+## YAML layouts
+
+All stock browser layouts are defined in [`internal/ui/layouts.yaml`](internal/ui/layouts.yaml)
+and embedded in the executable. The dropdown also includes **Stream Deck + XL
+(Studio layout)**: all 36 buttons in two rows of 18, the touch strip beneath them,
+and three dials stacked vertically on each side. Open `/kiosk/plus-xl-studio`
+to use that layout in kiosk mode.
+
+Layouts are **views of a source device**, not new USB devices. Switching between
+the stock + XL and its Studio layout shares the connection, images and input
+state. The Stream Deck application still sees the original + XL with its original
+USB identity, key order, six dials and 1200x100 touch strip.
+
+To add your own views, or replace bundled views by ID, create a YAML file and
+start the emulator with `-layouts my-layouts.yaml`. Files are loaded at startup;
+restart the emulator after editing. Existing layout IDs replace bundled views;
+new IDs are appended to the dropdown. Every view also works at `/kiosk/<layout-id>`.
+The file need only contain your additions/overrides, not all stock layouts.
+
+For example, this rearranges the eight buttons of a Stream Deck + into one row:
+
+```yaml
+layouts:
+  - id: plus-wide
+    name: Stream Deck + (Wide)
+    source:
+      vendorId: 0x0fd9
+      productId: 0x0084
+    width: 8
+    height: 3
+    elements:
+      - type: key
+        index: 0
+        count: 8
+        columns: 8
+        x: 0
+        y: 0
+        width: 1
+        height: 1
+      - type: strip
+        x: 0
+        y: 1.2
+        width: 8
+        height: 1
+      - type: dial
+        index: 0
+        count: 4
+        x: 0.5
+        y: 2.2
+        width: 0.8
+        height: 0.8
+        gapX: 1.2
+```
+
+- `id`: unique lowercase letters/numbers separated by hyphens; used in the
+  kiosk URL and saved dropdown selection. Stock model IDs are reserved for views
+  of that model.
+- `name`: the displayed dropdown label.
+- `source.vendorId` / `source.productId`: the known device's USB IDs, as hex
+  numbers (`0x0084`) or decimal integers. If multiple models have the same IDs,
+  add `source.modelId` to disambiguate (for example `module` / `module-vert`).
+- Top-level `width` / `height`: canvas dimensions in arbitrary units.
+- `elements`: rectangles with `type`, `x`, `y`, `width`, `height`. Types are
+  `key`, `dial`, `strip`, `screen` and `touchKey`. The top-left origin is `(0,0)`;
+  all rectangles scale proportionally in both web and kiosk modes.
+- `index`: zero-based **source** index, default `0`. Key and dial indices retain
+  the original device order, regardless of where you place them. `touchKey`
+  indices start at `0` separately from regular keys.
+- `count`: number of consecutive indices, default `1`. `columns` defaults to
+  `count`; set it to `1` for a vertical stack. `gapX` / `gapY` are non-negative
+  gaps between repeated rectangles, default `0`. Separate elements can reorder
+  any individual controls.
+
+Every source button, dial, touch key and display must appear exactly once.
+Rectangles must fit the canvas and cannot overlap. The touch strip is one display
+(not independent screens); the host still draws its dial regions, and browser
+touches map back to its original pixel coordinates even when resized. `screen`
+is the Neo's non-touch info display. Invalid/ambiguous sources, unknown YAML
+fields, duplicate IDs/indices, incomplete mappings and invalid geometry cause a
+startup error rather than silently falling back. Files are limited to one YAML
+document and 1 MiB. USB protocol definitions remain in Go; YAML defines only
+presentation.
 
 ## Limitations
 
@@ -106,13 +188,14 @@ Compare the output with the `unitInfo(...)` call of the model in `internal/deck/
 <details>
 <summary>Command-line flags</summary>
 
-| Flag | Default | Meaning |
-|---|---|---|
-| `-usbip` | `127.0.0.1:3240` | USB/IP listen address |
-| `-ui` | `127.0.0.1:8484` | Web UI listen address |
-| `-usbip-cli` | search | Path of the `usbip` client. By default the emulator looks on `PATH`, then in `C:\Program Files\USBip`. |
-| `-connect` | none | Models to connect at start, for example `-connect plus,neo`. |
-| `-version` | | Print the version and exit. |
+| Flag         | Default          | Meaning                                                                                                |
+| ------------ | ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `-usbip`     | `127.0.0.1:3240` | USB/IP listen address                                                                                  |
+| `-ui`        | `127.0.0.1:8484` | Web UI listen address                                                                                  |
+| `-usbip-cli` | search           | Path of the `usbip` client. By default the emulator looks on `PATH`, then in `C:\Program Files\USBip`. |
+| `-connect`   | none             | Models to connect at start, for example `-connect plus,neo`.                                           |
+| `-layouts`   | bundled          | YAML file adding or replacing browser/kiosk layouts.                                                   |
+| `-version`   |                  | Print the version and exit.                                                                            |
 
 </details>
 
@@ -123,16 +206,17 @@ The web UI talks to the emulator over HTTP, and scripts can do the same: press k
 
 `{id}` is a model id: `plus`, `neo` or `mk2`. The examples use a POSIX shell and the default address.
 
-| Request | Result |
-|---|---|
-| `GET /api/devices` | Models with their layout and connection state |
-| `POST /api/devices/{id}/connect` | Plug the device in |
-| `POST /api/devices/{id}/disconnect` | Unplug the device |
-| `POST /api/devices/{id}/input` | Press a key or a dial, turn a dial, touch the strip |
-| `GET /api/devices/{id}/key/{index}` | Key image, JPEG |
-| `GET /api/devices/{id}/strip` | Touch strip image, PNG |
-| `GET /api/devices/{id}/screen` | Info screen image, JPEG |
-| `GET /api/events` | Server-sent events about display and connection changes |
+| Request                             | Result                                                               |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `GET /api/devices`                  | Models with their layout and connection state                        |
+| `GET /api/layouts`                  | Layout IDs, names, source device IDs and expanded element rectangles |
+| `POST /api/devices/{id}/connect`    | Plug the device in                                                   |
+| `POST /api/devices/{id}/disconnect` | Unplug the device                                                    |
+| `POST /api/devices/{id}/input`      | Press a key or a dial, turn a dial, touch the strip                  |
+| `GET /api/devices/{id}/key/{index}` | Key image, JPEG                                                      |
+| `GET /api/devices/{id}/strip`       | Touch strip image, PNG                                               |
+| `GET /api/devices/{id}/screen`      | Info screen image, JPEG                                              |
+| `GET /api/events`                   | Server-sent events about display and connection changes              |
 
 A successful `POST` answers `204`. An error answers with a JSON body such as `{"code":"unsupported_input"}`. A key or screen the app has not drawn yet answers `204` without a body.
 
@@ -145,8 +229,9 @@ Galleon's dials appear above its touchscreen and keys. Use
 browser panel. Touch coordinates span 720x384; the four area centers are
 `(180,96)`, `(540,96)`, `(180,288)` and `(540,288)`. Taps, long presses and drags
 use the existing `touch` API. The host draws the area contents and boundaries;
-the emulator does not synthesize four extra key images. `knobPlacement: "above"`
-in `GET /api/devices` puts the dials and touchscreen before the key grid.
+the emulator does not synthesize four extra key images. Its bundled YAML view
+puts the dials and touchscreen before the key grid; the legacy
+`knobPlacement: "above"` metadata in `GET /api/devices` is retained for API compatibility.
 
 Press and release key 0:
 
@@ -184,6 +269,8 @@ Key and info screen JPEGs are returned as the app sent them. `rotated` in `GET /
 <summary>Building from source</summary>
 
 Building requires Go 1.27 or higher.
+Running the browser tests also requires Node.js 22.12 or higher:
+`node --test`. No npm packages are needed.
 
 ```
 go build -trimpath -o bin/emulator.exe ./cmd/emulator

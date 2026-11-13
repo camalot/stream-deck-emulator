@@ -1,62 +1,120 @@
 .panel {
-  /* Key size fits the page: --gf is the gap as a fraction of a key, --rows
-     and --cols are set by deck.js. */
-  --gf: .24;
-  --units: max(5.96, calc(var(--cols) + (var(--cols) - 1) * var(--gf)));
-  --vunits: max(3.95, calc(var(--rows) * 1.24));
-  --k: clamp(28px, min((100vw - 84px) / var(--units), (100dvh - 292px) / var(--vunits)), 104px);
-  --gx: calc(var(--k) * var(--gf));
-  --gy: calc(var(--k) * .24);
-  display: grid;
-  grid-template-columns: repeat(var(--cols), var(--k));
-  gap: var(--gy) var(--gx);
-  place-items: center;
-  width: max-content;
+  --k: clamp(28px, min((100vw - 84px) / max(5.96, var(--layout-width)), (100dvh - 292px) / max(3.95, var(--layout-height))), 104px);
+  position: relative;
+  width: calc(var(--k) * var(--layout-width));
+  height: calc(var(--k) * var(--layout-height));
   margin: 0 auto;
-  transition: opacity .2s;
+  transition: opacity 0.2s;
 }
-.panel[data-model="plus"], .panel[data-model="plus-xl"] { --gf: .4; }
-.panel[data-model="plus-xl"] { --vunits: 8; }
-.panel[data-model="galleon-100"] { --vunits: 8; }
-.dials-above { grid-column: 1 / -1; display: grid; width: 100%; justify-items: center; }
-.panel[data-model="neo"] { --gf: .34; --gy: calc(var(--k) * .34); }
-.panel[data-model="studio"] {
-  --units: calc(var(--cols) + 2 + (var(--cols) + 1) * var(--gf));
-  grid-template-columns: repeat(calc(var(--cols) + 2), var(--k));
+.panel > * {
+  position: absolute;
 }
 .kiosk .panel {
-  --units: calc(var(--cols) + (var(--cols) - 1) * var(--gf));
-  --k: calc(100cqw / var(--units));
-  overflow-x: clip;
+  --k: calc(100cqw / var(--layout-width));
 }
-.kiosk .panel[data-model="studio"] {
-  --units: calc(var(--cols) + 2 + (var(--cols) + 1) * var(--gf));
+.device.off .panel {
+  opacity: 0.35;
+  pointer-events: none;
 }
-.device.off .panel { opacity: .35; pointer-events: none; }
 
-.key { box-sizing: border-box; width: var(--k); height: var(--k); border: 2px solid #454545; border-radius: 18%; background: #232323; cursor: pointer; overflow: hidden; }
-.key.down, .touchkey.down { transform: scale(.96); }
-.face { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-/* The app sends Studio keys as 144x112 images with the visible 96x96 face centred in them. */
-.panel[data-model="studio"] .face {
+.key {
+  box-sizing: border-box;
+  border: 2px solid #454545;
+  border-radius: 18%;
+  background: #232323;
+  cursor: pointer;
+  overflow: hidden;
+}
+.key.down,
+.touchkey.down {
+  transform: scale(0.96);
+}
+.face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+/* This source's JPEG contains a padded 96x96 face, regardless of its layout. */
+.panel[data-model='studio'] .key .face {
   position: relative;
   left: calc(-100% * 24 / 96);
   top: calc(-100% * 8 / 96);
   width: calc(100% * 144 / 96);
   height: calc(100% * 112 / 96);
 }
-.face:not([src]) { visibility: hidden; }
-.rotated { transform: rotate(180deg); }
-.quarter-turn { transform: rotate(90deg); }
-.face, .strip { filter: brightness(var(--brightness, 1)); }
+.face:not([src]) {
+  visibility: hidden;
+}
+.rotated {
+  transform: rotate(180deg);
+}
+.quarter-turn {
+  transform: rotate(90deg);
+}
+.face,
+.strip {
+  filter: brightness(var(--brightness, 1));
+}
 
-.strip { box-sizing: border-box; grid-column: 1 / -1; display: block; width: 100%; aspect-ratio: var(--w) / var(--h); border: 2px solid #454545; border-radius: calc(var(--k) * .08); background: #000; cursor: pointer; touch-action: none; -webkit-user-drag: none; }
+.strip {
+  box-sizing: border-box;
+  display: block;
+  border: 2px solid #454545;
+  border-radius: calc(var(--k) * 0.08);
+  background: #000;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-drag: none;
+}
 
-.dial { box-sizing: border-box; position: relative; width: calc(var(--k) * .8); height: calc(var(--k) * .8); border: 2px solid #5a5a5a; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3c3c3c, #1c1c1c); cursor: grab; touch-action: none; }
-.dial::after { content: ""; position: absolute; left: 50%; top: 10%; width: 4%; height: 19%; translate: -50%; background: #c8c8c8; border-radius: 2px; }
-.dial.down { transform: scale(.94); }
+.dial-target {
+  cursor: grab;
+  touch-action: none;
+  overflow: clip;
+  border-radius: 50%;
+}
+.dial {
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #5a5a5a;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3c3c3c, #1c1c1c);
+}
+.dial::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  width: 4%;
+  height: 19%;
+  translate: -50%;
+  background: #c8c8c8;
+  border-radius: 2px;
+}
+.dial.down {
+  transform: scale(0.94);
+}
 
-/* A touch key is a short bar; the element around it is the click target. */
-.touchkey { display: grid; place-items: center; width: var(--k); height: calc(var(--k) * .5); cursor: pointer; }
-.touchkey::before { content: ""; width: 72%; height: calc(var(--k) * .08); border-radius: calc(var(--k) * .04); background: var(--color, #4a4a4a); }
-.screen { box-sizing: border-box; grid-column: span var(--span); width: 100%; aspect-ratio: var(--w) / var(--h); border: 2px solid #454545; border-radius: calc(var(--k) * .08); background: #000; overflow: hidden; }
+.touchkey {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.touchkey::before {
+  content: '';
+  width: 72%;
+  height: calc(var(--k) * 0.08);
+  border-radius: calc(var(--k) * 0.04);
+  background: var(--color, #4a4a4a);
+}
+.screen {
+  box-sizing: border-box;
+  border: 2px solid #454545;
+  border-radius: calc(var(--k) * 0.08);
+  background: #000;
+  overflow: hidden;
+}

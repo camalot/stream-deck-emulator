@@ -1,19 +1,19 @@
-import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { test } from "node:test";
-import { promisify } from "node:util";
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { test } from 'node:test';
+import { promisify } from 'node:util';
 
 const chrome = process.env.CHROME_BIN;
 const run = promisify(execFile);
 
 // The app draws a Studio key as a 96x96 face at (24, 8) inside a 144x112 image.
 test("Studio keys show only the visible face of the app's image", { skip: !chrome }, async () => {
-  const app = await readFile(new URL("./static/css/app.css", import.meta.url), "utf8");
-  const deck = await readFile(new URL("./static/css/deck.css", import.meta.url), "utf8");
+  const app = await readFile(new URL('./static/css/app.css', import.meta.url), 'utf8');
+  const deck = await readFile(new URL('./static/css/deck.css', import.meta.url), 'utf8');
   const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>${app}\n${deck}</style>
-    <body><main class="device"><div class="panel" style="--cols:16;--rows:2" data-model="studio"></div></main>
+    <body><main class="device"><div class="panel" style="--layout-width:22.08;--layout-height:2.24" data-model="studio"></div></main>
     <script>
       const canvas = document.createElement('canvas');
       canvas.width = 144;
@@ -27,6 +27,8 @@ test("Studio keys show only the visible face of the app's image", { skip: !chrom
       const panel = document.querySelector('.panel');
       const key = document.createElement('div');
       key.className = 'key';
+      key.style.width = (100 / 22.08) + '%';
+      key.style.height = (100 / 2.24) + '%';
       const face = document.createElement('img');
       face.className = 'face';
       key.append(face);
@@ -52,18 +54,18 @@ test("Studio keys show only the visible face of the app's image", { skip: !chrom
       };
       face.src = src;
     </script>`;
-  const url = `data:text/html;base64,${Buffer.from(html).toString("base64")}`;
-  const { stdout } = await run(chrome, ["--headless", "--disable-gpu", "--no-sandbox", "--window-size=1480,320", "--virtual-time-budget=2000", "--dump-dom", url], { timeout: 30000, maxBuffer: 1024 * 1024 });
+  const url = `data:text/html;base64,${Buffer.from(html).toString('base64')}`;
+  const { stdout } = await run(chrome, ['--headless', '--disable-gpu', '--no-sandbox', '--window-size=1480,320', '--virtual-time-budget=2000', '--dump-dom', url], { timeout: 30000, maxBuffer: 1024 * 1024 });
   const encoded = stdout.match(/data-result="([^"]+)"/)?.[1];
-  assert.ok(encoded, "browser did not produce layout measurements");
-  const result = JSON.parse(encoded.replaceAll("&quot;", '"'));
-  for (const mode of ["normal", "kiosk"]) {
+  assert.ok(encoded, 'browser did not produce layout measurements');
+  const result = JSON.parse(encoded.replaceAll('&quot;', '"'));
+  for (const mode of ['normal', 'kiosk']) {
     const r = result[mode];
     for (const [name, got, want] of [
-      ["x0", r.x0, 24],
-      ["x1", r.x1, 120],
-      ["y0", r.y0, 8],
-      ["y1", r.y1, 104],
+      ['x0', r.x0, 24],
+      ['x1', r.x1, 120],
+      ['y0', r.y0, 8],
+      ['y1', r.y1, 104],
     ]) {
       assert.ok(Math.abs(got - want) < 0.5, `${mode} ${name}: ${got}, want ${want}`);
     }

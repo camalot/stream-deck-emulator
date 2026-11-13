@@ -124,6 +124,7 @@ tasks:
     cmds:
       - go build ./...
       - go test ./... -coverprofile=coverage.out
+      - node --test
 
   build-snapshot:
     # internal: true

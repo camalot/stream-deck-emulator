@@ -102,10 +102,14 @@ type input struct {
 
 // Handler serves the UI for devices. hosts lists the Host header values the
 // server answers to; nil accepts any.
-func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
+func Handler(devices []*deck.Device, lk Linker, hosts []string, layouts []Layout) http.Handler {
 	byID := map[string]*deck.Device{}
 	for _, d := range devices {
 		byID[d.Model().ID] = d
+	}
+	byLayout := map[string]Layout{}
+	for _, l := range layouts {
+		byLayout[l.ID] = l
 	}
 	// device resolves the {id} path value and answers 404 itself if there
 	// is no such device.
@@ -134,9 +138,12 @@ func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
 		http.ServeFileFS(w, r, assets, "static/index.html")
 	})
 	mux.HandleFunc("GET /kiosk/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if device(w, r) != nil {
-			http.ServeFileFS(w, r, assets, "static/index.html")
+		l, ok := byLayout[r.PathValue("id")]
+		if !ok || byID[l.SourceID] == nil {
+			fail(w, http.StatusNotFound, codeUnknownDevice)
+			return
 		}
+		http.ServeFileFS(w, r, assets, "static/index.html")
 	})
 	mux.Handle("GET /static/", http.FileServerFS(assets))
 	mux.Handle("GET /locales/", http.FileServerFS(assets))
@@ -149,6 +156,15 @@ func Handler(devices []*deck.Device, lk Linker, hosts []string) http.Handler {
 		list := make([]deviceInfo, 0, len(devices))
 		for _, d := range devices {
 			list = append(list, describe(d.Model(), statuses[d.Model().ID]))
+		}
+		writeJSON(w, http.StatusOK, list)
+	})
+	mux.HandleFunc("GET /api/layouts", func(w http.ResponseWriter, _ *http.Request) {
+		list := make([]Layout, 0, len(layouts))
+		for _, l := range layouts {
+			if byID[l.SourceID] != nil {
+				list = append(list, l)
+			}
 		}
 		writeJSON(w, http.StatusOK, list)
 	})

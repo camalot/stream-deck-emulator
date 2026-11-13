@@ -2,11 +2,51 @@ package main
 
 import (
 	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 )
+
+func TestLoadLayouts(t *testing.T) {
+	base, err := loadLayouts("")
+	if err != nil || len(base) == 0 {
+		t.Fatalf("bundled: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "layouts.yaml")
+	if _, err := loadLayouts(path); err == nil {
+		t.Fatal("missing file accepted")
+	}
+	for _, text := range []string{
+		"layouts: []",
+		"layouts:\n  - id: invalid\n",
+	} {
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := loadLayouts(path); err == nil || !strings.Contains(err.Error(), "-layouts") {
+			t.Fatalf("invalid file: %v", err)
+		}
+	}
+	text := `layouts:
+  - id: wide-xl
+    name: Wide XL
+    source: {vendorId: 0x0fd9, productId: 0x006c}
+    width: 32
+    height: 1
+    elements:
+      - {type: key, count: 32, x: 0, y: 0, width: 1, height: 1}
+`
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := loadLayouts(path)
+	if err != nil || len(got) != len(base)+1 || got[len(got)-1].SourceID != "xl" {
+		t.Fatalf("external file not merged: %v, %v", got, err)
+	}
+}
 
 var known = []string{"plus", "neo", "mk2"}
 

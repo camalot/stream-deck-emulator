@@ -26,6 +26,7 @@ vet:
 
 test:
 	go test ./...
+	node --test
 
 check: vet test
 
